@@ -9,16 +9,22 @@
     html, body {
       width: 100%; height: 100%;
       background: #000; color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden; display: flex; flex-direction: column;
     }
     header {
       background: #18181b; padding: 8px 12px;
       display: flex; justify-content: space-between; align-items: center;
-      border-bottom: 1px solid #333; flex-shrink: 0;
+      border-bottom: 1px solid #333; flex-shrink: 0; z-index: 30;
     }
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
-    #fps { font-size: 11px; color: #aaa; }
+    #status-badge {
+      font-size: 10px; padding: 3px 8px; border-radius: 4px;
+      background: #334155; color: #94a3b8; font-weight: bold;
+    }
+    #status-badge.active { background: #16a34a; color: #fff; }
+    #status-badge.cal1 { background: #d97706; color: #fff; }
+    #status-badge.cal2 { background: #0284c7; color: #fff; }
 
     #stage {
       position: relative; flex: 1; width: 100%;
@@ -29,21 +35,30 @@
       object-fit: cover;
     }
 
-    /* ケーブル通過帯（上寄り40%位置）に枠を配置 */
+    /* ケーブル測定枠（画面上寄り40%位置に固定配置） */
     #target-box {
       position: absolute;
       top: 40%; left: 4%; width: 92%; height: 100px;
       border: 2px solid #22c55e; border-radius: 4px;
       box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
       z-index: 10; pointer-events: none;
-      display: flex; padding: 4px;
+      display: flex; justify-content: space-between; padding: 4px;
     }
     .box-tag {
       font-size: 10px; color: #22c55e;
-      background: rgba(0,0,0,0.6); padding: 2px 4px; border-radius: 2px;
+      background: rgba(0,0,0,0.65); padding: 2px 5px; border-radius: 2px;
     }
 
-    /* ダッシュボード */
+    /* エラー警告バナー（中央にポップアップ） */
+    #error-banner {
+      position: absolute; top: 125px; left: 50%; transform: translateX(-50%);
+      background: rgba(220, 38, 38, 0.95); border: 1px solid #f87171;
+      color: #fff; padding: 6px 16px; border-radius: 20px;
+      font-size: 12px; font-weight: bold; z-index: 35;
+      display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    /* ダッシュボード（距離・残り・速度） */
     #dash {
       position: absolute; top: 6px; left: 6px; right: 6px;
       z-index: 20; display: flex; gap: 6px;
@@ -54,23 +69,18 @@
       padding: 6px 2px; text-align: center;
     }
     .card-lbl { font-size: 9px; color: #aaa; }
-    .card-val { font-size: 20px; font-weight: bold; }
+    .card-val { font-size: 20px; font-weight: bold; font-variant-numeric: tabular-nums; }
     .card-unit { font-size: 10px; color: #888; }
 
-    /* モード切替 */
-    #scale-selector {
+    /* 校正ステータスインフォバー */
+    #info-bar {
       position: absolute; top: 66px; left: 6px; right: 6px;
-      display: flex; gap: 6px; z-index: 20;
+      background: rgba(15, 23, 42, 0.9); border: 1px solid #475569;
+      padding: 5px 8px; border-radius: 6px; font-size: 10px;
+      display: flex; justify-content: space-between; align-items: center; z-index: 20;
     }
-    .tab-btn {
-      flex: 1; background: rgba(15, 23, 42, 0.9);
-      border: 1px solid #475569; color: #94a3b8;
-      padding: 6px 0; border-radius: 6px; font-size: 11px;
-      cursor: pointer; text-align: center;
-    }
-    .tab-btn.active { background: #0284c7; border-color: #38bdf8; color: #fff; font-weight: bold; }
 
-    /* 動画コントローラー */
+    /* 動画コントローラー（テスト用・速度可変機能付き） */
     #v-bar {
       position: absolute; bottom: 6px; left: 6px; right: 6px;
       background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
@@ -90,7 +100,7 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
-    /* フッター（SafariのURLバー被りを完全に防止） */
+    /* 操作ボタンエリア（Safariアドレスバー完全回避） */
     footer {
       background: #18181b;
       padding: 8px 8px calc(34px + env(safe-area-inset-bottom, 26px));
@@ -113,8 +123,8 @@
 <body>
 
   <header>
-    <div class="title">(仮称)カメラ式ケーブル距離計</div>
-    <div id="fps">0 FPS</div>
+    <div class="title">(仮称)カメラ式ケーブル距離計 - KAMEKO</div>
+    <div id="status-badge">待機中 (ヘッド通過待ち)</div>
   </header>
 
   <div id="stage">
@@ -124,7 +134,11 @@
     <!-- ケーブル測定枠 -->
     <div id="target-box">
       <span class="box-tag">🎯 ケーブル測定枠</span>
+      <span class="box-tag" style="color:#facc15;">ヘッド後端:開始 / 黄2点:校正</span>
     </div>
+
+    <!-- エラー・警告バナー -->
+    <div id="error-banner">⚠️ 警告メッセージ</div>
 
     <!-- ダッシュボード -->
     <div id="dash">
@@ -142,13 +156,13 @@
       </div>
     </div>
 
-    <!-- モード切替 -->
-    <div id="scale-selector">
-      <button class="tab-btn" id="tab-close">近接 (約40cm)</button>
-      <button class="tab-btn active" id="tab-wide">引き (約80cm〜1m)</button>
+    <!-- 校正ステータスインフォ -->
+    <div id="info-bar">
+      <span id="calib-txt">校正: 未校正 (暫定 1.40 px/mm)</span>
+      <span id="fps">0 FPS</span>
     </div>
 
-    <!-- 動画操作バー -->
+    <!-- 動画操作バー（再生速度可変コントローラー付き） -->
     <div id="v-bar">
       <div class="v-row">
         <span style="font-size: 10px; color: #38bdf8; min-width: 48px; font-weight: bold;">速度:</span>
@@ -189,12 +203,22 @@
   </footer>
 
   <script>
-    var scaleFactor = 1.4;
+    var scaleFactor = 1.4; // 暫定初期スケール（引き画角標準）
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
     var isPaused = false;
     var currentPlaybackRate = 1.0;
+
+    // --- 状態遷移ステートマシン ---
+    // WAIT_HEAD_INSIDE (白ヘッド進入待ち)
+    // ➔ WAIT_HEAD_TRAILING (白ヘッド後端抜けで 0.00m 自動トリガー)
+    // ➔ TRACKING_WAIT_YEL1 (黄テープ①後端抜けで 1m 暫定校正)
+    // ➔ TRACKING_WAIT_YEL2 (黄テープ②後端抜けで 2m 本校正完了)
+    // ➔ TRACKING_FINAL (通常測定モード)
+    var state = 'WAIT_HEAD_INSIDE';
+    var isInsideYellow = false;
+    var totalPxSinceStart = 0.0;
 
     var announcedMarks = {};
     var speedSamples = [];
@@ -204,6 +228,7 @@
     var frameCount = 0;
     var lastFpsTime = performance.now();
     var prevProfile = null;
+    var lastErrorTime = 0;
 
     var v = document.getElementById('v');
     var cProc = document.getElementById('c-proc');
@@ -217,46 +242,76 @@
     var vBar = document.getElementById('v-bar');
     var vTime = document.getElementById('v-time');
     var bPause = document.getElementById('b-pause');
+    var statusBadge = document.getElementById('status-badge');
+    var calibTxt = document.getElementById('calib-txt');
+    var errorBanner = document.getElementById('error-banner');
 
-    function speak(text) {
+    // === 音声案内（指定回数復唱対応） ===
+    function speak(text, repeatCount) {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
-      var uttr = new SpeechSynthesisUtterance(text);
-      uttr.lang = 'ja-JP'; uttr.rate = 1.15;
-      window.speechSynthesis.speak(uttr);
+      var count = repeatCount || 1;
+      for (var i = 0; i < count; i++) {
+        var uttr = new SpeechSynthesisUtterance(text);
+        uttr.lang = 'ja-JP';
+        uttr.rate = 1.15;
+        window.speechSynthesis.speak(uttr);
+      }
     }
 
+    // === フェイルセーフ（エラー・警告表示＋音声） ===
+    function triggerError(msg, audioMsg) {
+      var now = performance.now();
+      if (now - lastErrorTime > 3000) {
+        errorBanner.innerText = msg;
+        errorBanner.style.display = 'block';
+        if (audioMsg) speak(audioMsg, 1);
+        setTimeout(function() { errorBanner.style.display = 'none'; }, 2500);
+        lastErrorTime = now;
+      }
+    }
+
+    // === 距離音声案内ロジック ===
     function checkDistanceAnnouncements(currentD) {
       var diff = targetDist - currentD;
+
+      // 1. 5m刻みの経過案内（残り10m手前まで）
       if (diff > 10.5) {
         var step5 = Math.floor(currentD / 5.0) * 5;
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
           announcedMarks['fwd_' + step5] = true;
-          speak(step5 + 'メートル');
+          speak(step5 + 'メートル', 1);
           return;
         }
       }
+
+      // 2. ラストスパート（残り10mから1m刻みカウントダウン）
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
           announcedMarks['rem_' + m] = true;
-          speak(m + 'メートル');
+          speak(m + 'メートル', 1);
           return;
         }
       }
+
+      // 3. 目標到達
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
         announcedMarks['zero'] = true;
-        speak('ゼロ、到達しました');
+        speak('ゼロ、到達しました', 1);
         return;
       }
+
+      // 4. 超過加算案内 (+1m, +2m, +3m...)
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
         if (overM >= 1 && overM <= 15 && !announcedMarks['over_' + overM]) {
           announcedMarks['over_' + overM] = true;
-          speak('プラス ' + overM + 'メートル');
+          speak('プラス ' + overM + 'メートル', 1);
         }
       }
     }
 
+    // === 音声認識（コマンド操作） ===
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var recognition = null;
     var isMicListening = false;
@@ -270,13 +325,13 @@
         var cmd = event.results[last][0].transcript.trim().replace(/\s+/g, '');
         if (cmd.includes('スタート') || cmd.includes('開始')) {
           isPaused = false; bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸'; prevProfile = null;
-          speak('スタートしました');
+          speak('スタートしました', 1);
         } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
           isPaused = true; bPause.className = 'green'; bPause.innerText = '測定再開 ▶'; txtSpeed.innerText = "0.0";
-          speak('ストップしました');
+          speak('ストップしました', 1);
         } else if (cmd.includes('リセット')) {
-          totalDist = 0.0; announcedMarks = {}; updateDistUI();
-          speak('ゼロリセットしました');
+          resetAll();
+          speak('リセットしました', 1);
         }
       };
     }
@@ -288,13 +343,31 @@
         try {
           recognition.start();
           bMic.className = 'mic-on'; bMic.innerText = '🎤 待受中';
-          speak('音声操作を開始します');
+          speak('音声操作を開始します', 1);
         } catch(e) {}
       } else {
         recognition.stop();
         bMic.className = ''; bMic.innerText = '🎤 音声認識 ON';
-        speak('音声操作を終了しました');
+        speak('音声操作を終了しました', 1);
       }
+    });
+
+    function resetAll() {
+      totalDist = 0.0;
+      totalPxSinceStart = 0.0;
+      state = 'WAIT_HEAD_INSIDE';
+      isInsideYellow = false;
+      statusBadge.className = '';
+      statusBadge.innerText = '待機中 (ヘッド通過待ち)';
+      announcedMarks = {};
+      speedSamples = [];
+      updateDistUI();
+      txtSpeed.innerText = "0.0";
+    }
+
+    document.getElementById('b-zero').addEventListener('click', function() {
+      resetAll();
+      speak('リセットしました', 1);
     });
 
     document.getElementById('b-set-target').addEventListener('click', function() {
@@ -303,7 +376,7 @@
         targetDist = Math.max(1, parseFloat(val));
         txtTargetVal.innerText = targetDist;
         announcedMarks = {}; updateDistUI();
-        speak(targetDist + 'メートルにセットしました');
+        speak(targetDist + 'メートルにセットしました', 1);
       }
     });
 
@@ -314,6 +387,7 @@
       txtRemain.style.color = (rem <= 0) ? '#ef4444' : '#38bdf8';
     }
 
+    // 再生速度ボタン
     var spdBtns = document.querySelectorAll('.speed-btn');
     for (var i = 0; i < spdBtns.length; i++) {
       spdBtns[i].addEventListener('click', function() {
@@ -324,11 +398,7 @@
       });
     }
 
-    var tabClose = document.getElementById('tab-close');
-    var tabWide = document.getElementById('tab-wide');
-    tabClose.addEventListener('click', function() { scaleFactor = 2.5; tabClose.className = 'tab-btn active'; tabWide.className = 'tab-btn'; });
-    tabWide.addEventListener('click', function() { scaleFactor = 1.4; tabWide.className = 'tab-btn active'; tabClose.className = 'tab-btn'; });
-
+    // カメラ起動
     document.getElementById('b-cam').addEventListener('click', function() {
       vBar.style.display = 'none';
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -343,6 +413,7 @@
       }
     });
 
+    // 動画読込
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -370,9 +441,6 @@
 
     document.getElementById('b-p01').addEventListener('click', function() { totalDist += 0.1; updateDistUI(); checkDistanceAnnouncements(totalDist); });
     document.getElementById('b-m01').addEventListener('click', function() { totalDist = Math.max(0, totalDist - 0.1); updateDistUI(); });
-    document.getElementById('b-zero').addEventListener('click', function() {
-      totalDist = 0.0; announcedMarks = {}; speedSamples = []; updateDistUI(); txtSpeed.innerText = "0.0";
-    });
 
     bPause.addEventListener('click', function() {
       isPaused = !isPaused;
@@ -389,6 +457,7 @@
       requestAnimationFrame(mainLoop);
     }
 
+    // === メイン解析ループ（白ヘッド後端トリガー ＆ 黄テープ2段階校正 ＆ 1次元相関トラッキング） ===
     function mainLoop(now) {
       if (v.readyState >= 2 && v.videoWidth > 0) {
         var pw = 160; var ph = 30;
@@ -396,24 +465,87 @@
 
         var vw = v.videoWidth; var vh = v.videoHeight;
         var sx = 0;
-        var sy = Math.floor(vh * 0.38); // ケーブル通過帯を直撃サンプリング
+        var sy = Math.floor(vh * 0.38);
         var swSrc = vw;
         var shSrc = Math.floor(vh * 0.22);
 
         ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, pw, ph);
         var imgData = ctxProc.getImageData(0, 0, pw, ph).data;
 
+        // --- カラー＆輝度プロファイル解析 ---
         var curProf = new Float32Array(pw);
+        var whiteCountTotal = 0;
+        var yellowCountTotal = 0;
+        var cableDetected = false;
+
         for (var x = 0; x < pw; x++) {
-          var sum = 0, cnt = 0;
+          var sumG = 0, cnt = 0;
           for (var y = 0; y < ph; y++) {
             var idx = (y * pw + x) * 4;
-            var g = 0.299 * imgData[idx] + 0.587 * imgData[idx+1] + 0.114 * imgData[idx+2];
-            if (g < 235) { sum += g; cnt++; }
+            var r = imgData[idx];
+            var g = imgData[idx+1];
+            var b = imgData[idx+2];
+            var gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+            if (gray < 160) cableDetected = true;
+            if (r > 210 && g > 210 && b > 210) whiteCountTotal++;
+            if (r > 160 && g > 150 && b < 100 && (r + g - 2 * b) > 110) yellowCountTotal++;
+
+            if (gray < 235) { sumG += gray; cnt++; }
           }
-          curProf[x] = cnt > 0 ? sum / cnt : 0;
+          curProf[x] = cnt > 0 ? sumG / cnt : 0;
         }
 
+        var isWhitePresent = whiteCountTotal > (pw * ph * 0.25);
+        var isYellowPresent = yellowCountTotal > (pw * ph * 0.12);
+
+        // --- 後端検知＆2段階校正ステートマシン ---
+        // 1. 白ヘッド侵入
+        if (state === 'WAIT_HEAD_INSIDE' && isWhitePresent) {
+          state = 'WAIT_HEAD_TRAILING';
+          statusBadge.innerText = 'ヘッド通過中...';
+        }
+        // 2. 白ヘッド後端抜け ➔ 0.00m 自動スタート（2回アナウンス）
+        else if (state === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
+          state = 'TRACKING_WAIT_YEL1';
+          totalDist = 0.0;
+          totalPxSinceStart = 0.0;
+          statusBadge.className = 'active';
+          statusBadge.innerText = '測定中 (1m黄テープ待ち)';
+          speak('測定を開始します。測定を開始します。', 2);
+        }
+        // 3. 黄テープ①後端抜け ➔ 1m 暫定校正
+        else if (state === 'TRACKING_WAIT_YEL1') {
+          if (isYellowPresent) {
+            isInsideYellow = true;
+          } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
+            isInsideYellow = false;
+            state = 'TRACKING_WAIT_YEL2';
+            scaleFactor = totalPxSinceStart / 1000.0;
+            totalDist = 1.0;
+            statusBadge.className = 'cal1';
+            statusBadge.innerText = '1次校正済 (2m黄テープ待ち)';
+            calibTxt.innerText = '校正: 1次完了 (' + scaleFactor.toFixed(2) + ' px/mm)';
+            speak('1メートル通過、1次校正完了', 1);
+          }
+        }
+        // 4. 黄テープ②後端抜け ➔ 2m 本校正完了
+        else if (state === 'TRACKING_WAIT_YEL2') {
+          if (isYellowPresent) {
+            isInsideYellow = true;
+          } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
+            isInsideYellow = false;
+            state = 'TRACKING_FINAL';
+            scaleFactor = totalPxSinceStart / 2000.0;
+            totalDist = 2.0;
+            statusBadge.className = 'cal2';
+            statusBadge.innerText = '本校正完了 (最高精度)';
+            calibTxt.innerText = '校正: 本校正完了 (' + scaleFactor.toFixed(2) + ' px/mm)';
+            speak('2メートル通過、本校正完了しました', 1);
+          }
+        }
+
+        // --- 移動量トラッキング ---
         if (!isPaused && prevProfile) {
           var maxS = 14, bestS = 0, minDiff = 999999;
           for (var s = -maxS; s <= maxS; s++) {
@@ -425,21 +557,40 @@
           }
 
           var shiftPx = bestS * (swSrc / pw);
-          var deltaM = (shiftPx / scaleFactor) / 1000.0;
           var dt = (now - lastLoopTime) / 1000.0;
 
-          if (Math.abs(deltaM) < 0.05 && Math.abs(deltaM) > 0.0006) {
-            totalDist += deltaM;
-            updateDistUI();
-            checkDistanceAnnouncements(totalDist);
+          // エラー検知：逆送り（負の移動）
+          if (shiftPx < -3.5) {
+            triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
+          }
 
-            if (dt > 0 && dt < 0.25) {
-              speedSamples.push(Math.max(0, (deltaM / dt) * 60.0));
+          if (Math.abs(shiftPx) > 0.05 && Math.abs(shiftPx) < 45.0) {
+            var deltaM = (shiftPx / scaleFactor) / 1000.0;
+
+            if (state !== 'WAIT_HEAD_INSIDE' && state !== 'WAIT_HEAD_TRAILING') {
+              totalDist += deltaM;
+              totalPxSinceStart += shiftPx;
+              updateDistUI();
+              checkDistanceAnnouncements(totalDist);
+
+              if (dt > 0 && dt < 0.25) {
+                var instSpeed = (deltaM / dt) * 60.0;
+                if (instSpeed > 50.0) {
+                  triggerError('⚠️ 異常急加速 / スリップ検知', '急加速検知');
+                }
+                speedSamples.push(Math.max(0, instSpeed));
+              }
             }
           } else {
             speedSamples.push(0);
           }
 
+          // エラー検知：ケーブルロスト
+          if (!cableDetected && state !== 'WAIT_HEAD_INSIDE') {
+            triggerError('⚠️ ケーブルを見失いました', 'ケーブル確認');
+          }
+
+          // 速度平滑化
           if (now - lastSpeedTime > 500) {
             if (speedSamples.length > 0) {
               var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
