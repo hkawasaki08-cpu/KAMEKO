@@ -250,7 +250,6 @@
     var lastSpeedTime = performance.now();
     var currentSpeed = 0.0;
     var lastProcessTime = 0;
-    var lastErrorTime = 0;
 
     // 逆再生タイマー制御
     var reverseInterval = null;
@@ -259,9 +258,10 @@
     // 逆送り（バック中）連続検知用
     var backwardStreak = 0;
 
-    // 固定バッファ（Safariクラッシュ完全対策）
-    var PW = 160;
+    // 解像度＆固定バッファ（メモリ枯渇防止）
+    var PW = 200;
     var PH = 32;
+    var rawProf = new Float32Array(PW);
     var curProf = new Float32Array(PW);
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
@@ -291,7 +291,6 @@
     var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
 
-    // 発声制御（きっちり指定回数のみ発話）
     function speak(text, count) {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
@@ -435,7 +434,6 @@
       backwardStreak = 0;
       updateDistUI();
       if (v.paused) v.play();
-      // きっちり2回発声
       speak('測定を開始します。', 2);
     }
 
@@ -595,7 +593,6 @@
       }
     });
 
-    // ◀ 逆再生ボタンの実装（タイマーでcurrentTimeを巻き戻す）
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
@@ -642,7 +639,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 解析ループ
+    // 解析ループ（探索幅maxS=40 ＆ 微分エッジ強調）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -675,6 +672,7 @@
           var whiteCountTotal = 0;
           var yellowCountTotal = 0;
 
+          // 1. 輝度の列平均算出
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -688,7 +686,18 @@
 
               sumG += 0.299 * r + 0.587 * g + 0.114 * b;
             }
-            curProf[x] = sumG / PH;
+            rawProf[x] = sumG / PH;
+          }
+
+          // 2. 黒シースの特徴を浮き立たせる微分エッジ強調
+          for (var x = 0; x < PW; x++) {
+            if (x === 0) {
+              curProf[x] = rawProf[1] - rawProf[0];
+            } else if (x === PW - 1) {
+              curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
+            } else {
+              curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
+            }
           }
 
           // 自動モード
@@ -733,9 +742,9 @@
             }
           }
 
-          // 相関トラッキング
+          // 相関トラッキング（探索幅を40ピクセルへ拡大）
           if (hasPrevProf) {
-            var maxS = 16, bestS = 0, minDiff = 9999999;
+            var maxS = 40, bestS = 0, minDiff = 99999999;
             for (var s = -maxS; s <= maxS; s++) {
               var diff = 0;
               for (var i = maxS; i < PW - maxS; i++) {
@@ -746,7 +755,7 @@
 
             var shiftPx = bestS * (swSrc / PW);
 
-            // バック（逆送り）判定：警報・音声は鳴らさず「バック中」表示のみ
+            // バック（逆送り）画面表示
             if (shiftPx < -1.5) {
               backwardStreak++;
               if (backwardStreak >= 3) {
@@ -763,7 +772,7 @@
             var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                            (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
-            if (canTrack && Math.abs(shiftPx) > 0.001) {
+            if (canTrack) {
               var deltaM = (shiftPx / scaleFactor) / 1000.0;
               totalDist += deltaM;
               totalPxSinceStart += shiftPx;
@@ -774,8 +783,6 @@
                 var instSpeed = (Math.abs(deltaM) / dtSec) * 60.0;
                 speedSamples.push(instSpeed);
               }
-            } else {
-              speedSamples.push(0);
             }
 
             if (now - lastSpeedTime > 500) {
