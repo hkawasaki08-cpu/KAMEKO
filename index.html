@@ -75,6 +75,51 @@
     .metric-value { font-size: 26px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
     .metric-unit { font-size: 12px; color: #888; margin-left: 2px; }
 
+    /* テスト用動画コントローラー（仮設） */
+    #video-test-controls {
+      position: absolute;
+      bottom: 40px;
+      left: 10px;
+      right: 10px;
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid #38bdf8;
+      backdrop-filter: blur(6px);
+      border-radius: 10px;
+      padding: 8px 10px;
+      z-index: 26;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .v-ctrl-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #38bdf8;
+      font-weight: bold;
+    }
+    .v-slider {
+      width: 100%;
+      height: 4px;
+      accent-color: #38bdf8;
+    }
+    .v-btn-row {
+      display: flex;
+      gap: 4px;
+    }
+    .v-btn {
+      flex: 1;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #475569;
+      border-radius: 4px;
+      padding: 6px 0;
+      font-size: 11px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .v-btn:active { background: #334155; }
+
     #status-msg {
       position: absolute;
       bottom: 12px;
@@ -120,7 +165,7 @@
     button.num-btn { background: #374151; font-weight: bold; }
     input[type="file"] { display: none; }
 
-    /* モーダルテンキー（カメラをフリーズさせない独自UI） */
+    /* モーダルテンキー */
     #num-modal {
       position: absolute;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -191,6 +236,22 @@
       </div>
     </div>
 
+    <!-- テスト用動画操作コントローラー（仮設） -->
+    <div id="video-test-controls">
+      <div class="v-ctrl-header">
+        <span>🎬 テスト動画コントローラー</span>
+        <span id="video-time-txt">0.0s / 0.0s</span>
+      </div>
+      <input type="range" id="video-seekbar" class="v-slider" min="0" max="100" value="0" step="0.1">
+      <div class="v-btn-row">
+        <button class="v-btn" id="vb-back1s">◀◀ -1s</button>
+        <button class="v-btn" id="vb-step-back">◀ コマ戻</button>
+        <button class="v-btn" id="vb-play-toggle" style="background:#0284c7;">一時停止 ⏸</button>
+        <button class="v-btn" id="vb-step-fwd">コマ送 ▶</button>
+        <button class="v-btn" id="vb-fwd1s">+1s ▶▶</button>
+      </div>
+    </div>
+
     <div id="status-msg">緑枠を上下にドラッグしてケーブルに合わせてください</div>
   </div>
 
@@ -248,7 +309,6 @@
     let lastSpeedUpdate = performance.now();
     let smoothedSpeed = 0.0;
 
-    // 枠の位置（初期位置をやや下寄りの55%に配置）
     let boxYRatio = 0.55;
 
     const video = document.getElementById('input-video');
@@ -262,11 +322,18 @@
     const fpsEl = document.getElementById('fps-display');
     const pauseBtn = document.getElementById('pause-btn');
 
+    // 動画コントローラー要素
+    const vCtrlPanel = document.getElementById('video-test-controls');
+    const vTimeTxt = document.getElementById('video-time-txt');
+    const vSeekbar = document.getElementById('video-seekbar');
+    const vbPlayToggle = document.getElementById('vb-play-toggle');
+
     let prevProfile = null;
     let isBusyProcessing = false;
 
     // カメラ起動
     document.getElementById('cam-btn').addEventListener('click', async () => {
+      vCtrlPanel.style.display = 'none'; // カメラ時はコントローラーを非表示
       statusMsg.innerText = "カメラ起動中...";
       try {
         if (video.srcObject) {
@@ -294,7 +361,7 @@
       }
     });
 
-    // 動画読込
+    // 動画読込（テストコントローラーを表示）
     document.getElementById('video-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
@@ -303,11 +370,56 @@
         video.srcObject = null;
       }
       video.src = URL.createObjectURL(file);
+      vCtrlPanel.style.display = 'flex'; // コントローラー表示
       await video.play();
+      vbPlayToggle.innerText = '一時停止 ⏸';
       isPaused = false;
       pauseBtn.className = 'pause';
       pauseBtn.innerText = '一時停止 ⏸';
       startProcessing();
+    });
+
+    // --- 動画テスト用コントローラー操作 ---
+    vbPlayToggle.addEventListener('click', () => {
+      if (video.paused) {
+        video.play();
+        vbPlayToggle.innerText = '一時停止 ⏸';
+      } else {
+        video.pause();
+        vbPlayToggle.innerText = '再生 ▶';
+      }
+    });
+
+    document.getElementById('vb-back1s').addEventListener('click', () => {
+      video.currentTime = Math.max(0, video.currentTime - 1.0);
+    });
+    document.getElementById('vb-fwd1s').addEventListener('click', () => {
+      video.currentTime = Math.min(video.duration || 100, video.currentTime + 1.0);
+    });
+
+    // コマ送り / コマ戻し (約1フレーム: 1/30s ≒ 0.033s)
+    document.getElementById('vb-step-fwd').addEventListener('click', () => {
+      video.pause();
+      vbPlayToggle.innerText = '再生 ▶';
+      video.currentTime = Math.min(video.duration || 100, video.currentTime + 0.033);
+    });
+    document.getElementById('vb-step-back').addEventListener('click', () => {
+      video.pause();
+      vbPlayToggle.innerText = '再生 ▶';
+      video.currentTime = Math.max(0, video.currentTime - 0.033);
+    });
+
+    // シークバー連動
+    video.addEventListener('timeupdate', () => {
+      if (video.duration) {
+        vSeekbar.value = (video.currentTime / video.duration) * 100;
+        vTimeTxt.innerText = `${video.currentTime.toFixed(1)}s / ${video.duration.toFixed(1)}s`;
+      }
+    });
+    vSeekbar.addEventListener('input', () => {
+      if (video.duration) {
+        video.currentTime = (vSeekbar.value / 100) * video.duration;
+      }
     });
 
     // 一時停止 / 再開
@@ -336,223 +448,6 @@
       updateDistUI();
     });
 
-    // 0mリセット（iOSフリーズの原因だったダイアログを全廃し、即時ゼロクリア）
+    // 0mリセット
     document.getElementById('reset-btn').addEventListener('click', () => {
-      totalDistanceMeters = 0.0;
-      speedSamples = [];
-      smoothedSpeed = 0.0;
-      updateDistUI();
-      speedEl.innerText = "0.0";
-      statusMsg.innerText = "0.00m にリセットしました";
-      setTimeout(() => { if (!isPaused) statusMsg.innerText = "測定中"; }, 1500);
-    });
-
-    function updateDistUI() {
-      distEl.innerText = totalDistanceMeters.toFixed(2);
-    }
-
-    // --- テンキー操作（ダイアログなしで安全に入力） ---
-    let numStr = "0";
-    const numModal = document.getElementById('num-modal');
-    const numDisplay = document.getElementById('numpad-display');
-
-    document.getElementById('btn-input').addEventListener('click', () => {
-      numStr = totalDistanceMeters.toFixed(2);
-      numDisplay.innerText = numStr;
-      numModal.style.display = 'flex';
-    });
-
-    function numKey(k) {
-      if (k === 'C') {
-        numStr = "0";
-      } else if (k === '.') {
-        if (!numStr.includes('.')) numStr += '.';
-      } else {
-        numStr = (numStr === "0") ? k : numStr + k;
-      }
-      numDisplay.innerText = numStr;
-    }
-
-    function closeNumModal(apply) {
-      if (apply) {
-        const v = parseFloat(numStr);
-        if (!isNaN(v)) {
-          totalDistanceMeters = Math.max(0, v);
-          updateDistUI();
-        }
-      }
-      numModal.style.display = 'none';
-    }
-
-    // --- 枠のドラッグ移動 ---
-    const vContainer = document.getElementById('viewport-container');
-    let isDragging = false;
-    vContainer.addEventListener('pointerdown', (e) => { isDragging = true; });
-    vContainer.addEventListener('pointermove', (e) => {
-      if (!isDragging) return;
-      const rect = vContainer.getBoundingClientRect();
-      const relY = (e.clientY - rect.top) / rect.height;
-      boxYRatio = Math.max(0.2, Math.min(0.8, relY));
-    });
-    window.addEventListener('pointerup', () => { isDragging = false; });
-
-    function startProcessing() {
-      if (isTracking) return;
-      isTracking = true;
-      requestAnimationFrame(processLoop);
-    }
-
-    // 解析ループ
-    function processLoop(timestamp) {
-      if (!isTracking) return;
-
-      const cw = vContainer.clientWidth;
-      const ch = vContainer.clientHeight;
-
-      if (overlayCanvas.width !== cw || overlayCanvas.height !== ch) {
-        overlayCanvas.width = cw;
-        overlayCanvas.height = ch;
-      }
-
-      const boxW = Math.floor(cw * 0.88);
-      const boxH = 65;
-      const boxX = Math.floor((cw - boxW) / 2);
-      const boxY = Math.floor(ch * boxYRatio - boxH / 2);
-
-      drawOverlay(boxX, boxY, boxW, boxH);
-
-      if (!isBusyProcessing && video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
-        isBusyProcessing = true;
-
-        try {
-          const procW = 160;
-          const procH = 20;
-          if (procCanvas.width !== procW || procCanvas.height !== procH) {
-            procCanvas.width = procW;
-            procCanvas.height = procH;
-          }
-
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
-          const scale = Math.max(cw / vw, ch / vh);
-          const renderedW = vw * scale;
-          const renderedH = vh * scale;
-          const offsetX = (cw - renderedW) / 2;
-          const offsetY = (ch - renderedH) / 2;
-
-          const srcX = Math.max(0, (boxX - offsetX) / scale);
-          const srcY = Math.max(0, (boxY - offsetY) / scale);
-          const srcW = Math.min(vw - srcX, boxW / scale);
-          const srcH = Math.min(vh - srcY, boxH / scale);
-
-          procCtx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, procW, procH);
-          const frameData = procCtx.getImageData(0, 0, procW, procH);
-
-          const currProfile = computeProfile(frameData.data, procW, procH);
-
-          if (!isPaused && prevProfile) {
-            const shift = computeShift(prevProfile, currProfile);
-            const shiftPx = shift * (srcW / procW);
-            const deltaM = (shiftPx / scale_px_per_mm) / 1000.0;
-            const dt = (timestamp - lastTimestamp) / 1000.0;
-
-            if (Math.abs(deltaM) < 0.04 && Math.abs(deltaM) > 0.0006) {
-              totalDistanceMeters += deltaM;
-              updateDistUI();
-
-              if (dt > 0 && dt < 0.25) {
-                const instSpeed = (deltaM / dt) * 60.0;
-                speedSamples.push(Math.max(0, instSpeed));
-              }
-            } else {
-              speedSamples.push(0);
-            }
-
-            if (timestamp - lastSpeedUpdate > 500) {
-              if (speedSamples.length > 0) {
-                const avg = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
-                smoothedSpeed = smoothedSpeed * 0.3 + avg * 0.7;
-                speedSamples = [];
-              } else {
-                smoothedSpeed = 0.0;
-              }
-              speedEl.innerText = Math.max(0, smoothedSpeed).toFixed(1);
-              lastSpeedUpdate = timestamp;
-            }
-          }
-          prevProfile = currProfile;
-        } catch (e) {
-          console.error(e);
-        } finally {
-          isBusyProcessing = false;
-        }
-
-        frameCounter++;
-        if (timestamp - lastFpsUpdate > 1000) {
-          fpsEl.innerText = `${frameCounter} FPS`;
-          frameCounter = 0;
-          lastFpsUpdate = timestamp;
-        }
-      }
-
-      lastTimestamp = timestamp;
-      requestAnimationFrame(processLoop);
-    }
-
-    function computeProfile(data, w, h) {
-      const prof = new Float32Array(w);
-      for (let x = 0; x < w; x++) {
-        let sum = 0, count = 0;
-        for (let y = 0; y < h; y++) {
-          const idx = (y * w + x) * 4;
-          const gray = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
-          if (gray < 235) {
-            sum += gray;
-            count++;
-          }
-        }
-        prof[x] = count > 0 ? sum / count : 0;
-      }
-      return prof;
-    }
-
-    function computeShift(prev, curr) {
-      const maxSearch = 10;
-      let bestShift = 0;
-      let minDiff = Infinity;
-      for (let s = -maxSearch; s <= maxSearch; s++) {
-        let diff = 0, count = 0;
-        for (let i = maxSearch; i < prev.length - maxSearch; i++) {
-          diff += Math.abs(prev[i] - curr[i + s]);
-          count++;
-        }
-        if (count > 0 && diff < minDiff) {
-          minDiff = diff;
-          bestShift = s;
-        }
-      }
-      return bestShift;
-    }
-
-    function drawOverlay(x, y, w, h) {
-      const ctx = overlayCtx;
-      ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-
-      ctx.strokeStyle = isPaused ? '#94a3b8' : '#22c55e';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, w, h);
-
-      const c = 10;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(x, y + c); ctx.lineTo(x, y); ctx.lineTo(x + c, y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + w - c, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + c); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x, y + h - c); ctx.lineTo(x, y + h); ctx.lineTo(x + c, y + h); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + w - c, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - c); ctx.stroke();
-
-      ctx.fillStyle = isPaused ? '#94a3b8' : '#22c55e';
-      ctx.font = '11px sans-serif';
-      ctx.fillText(isPaused ? '⏸ 一時停止中' : '🎯 ケーブル枠 (上下にドラッグ可)', x, y - 6);
-    }
-  </script>
-</body>
-</html>
+      totalDistanceMeters = 0
