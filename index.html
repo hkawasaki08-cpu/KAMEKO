@@ -234,7 +234,7 @@
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
-    var isPaused = true; // 初期停止状態
+    var isPaused = true;
     var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
@@ -246,14 +246,22 @@
     var speedSamples = [];
     var lastSpeedTime = performance.now();
     var currentSpeed = 0.0;
-    var lastLoopTime = performance.now();
-    var prevProfile = null;
+    var lastProcessTime = 0;
     var lastErrorTime = 0;
+
+    // 固定バッファ（メモリ枯渇クラッシュ対策）
+    var PW = 160;
+    var PH = 32;
+    var curProf = new Float32Array(PW);
+    var prevProf = new Float32Array(PW);
+    var hasPrevProf = false;
 
     var stage = document.getElementById('stage');
     var targetBox = document.getElementById('target-box');
     var v = document.getElementById('v');
     var cProc = document.getElementById('c-proc');
+    cProc.width = PW;
+    cProc.height = PH;
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
 
     var txtDist = document.getElementById('txt-dist');
@@ -271,7 +279,6 @@
     var vbPlay = document.getElementById('vb-play');
     var bMic = document.getElementById('b-mic');
 
-    // === 音声案内エンジン（SpeechSynthesis） ===
     function speak(text, repeatCount) {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
@@ -295,11 +302,9 @@
       }
     }
 
-    // 距離音声案内ロジック
     function checkDistanceAnnouncements(currentD) {
       var diff = targetDist - currentD;
 
-      // 5m刻みの経過案内（残り10m手前まで）
       if (diff > 10.5) {
         var step5 = Math.floor(currentD / 5.0) * 5;
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
@@ -309,7 +314,6 @@
         }
       }
 
-      // 残り10m〜1mカウントダウン
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
           announcedMarks['rem_' + m] = true;
@@ -318,14 +322,12 @@
         }
       }
 
-      // 0m 到達案内
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
         announcedMarks['zero'] = true;
         speak('ゼロ、到達しました', 1);
         return;
       }
 
-      // 超過加算案内（プラス○メートル）
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
         if (overM >= 1 && overM <= 25 && !announcedMarks['over_' + overM]) {
@@ -335,7 +337,7 @@
       }
     }
 
-    // === 音声操作（マイク入力 SpeechRecognition） ===
+    // 音声操作
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var recognition = null;
     var isMicListening = false;
@@ -354,7 +356,7 @@
             isPaused = false;
             bPause.className = 'orange';
             bPause.innerText = '一時停止 ⏸';
-            prevProfile = null;
+            hasPrevProf = false;
             if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
             speak('スタートしました', 1);
           }
@@ -390,7 +392,6 @@
       }
     });
 
-    // モード切替タブ
     var tabAuto = document.getElementById('tab-auto');
     var tabManual = document.getElementById('tab-manual');
 
@@ -432,7 +433,6 @@
       mScaleClose.className = 'scale-tab';
     });
 
-    // 手動スタート（2回復唱アナウンス）
     bManualStart.addEventListener('click', function() {
       startManualMeasurement();
     });
@@ -443,7 +443,7 @@
       isPaused = false;
       bPause.className = 'orange';
       bPause.innerText = '一時停止 ⏸';
-      prevProfile = null;
+      hasPrevProf = false;
       announcedMarks = {};
       updateDistUI();
       if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
@@ -455,6 +455,7 @@
       totalPxSinceStart = 0.0;
       isInsideYellow = false;
       isManualTracking = false;
+      hasPrevProf = false;
       announcedMarks = {};
       speedSamples = [];
       updateDistUI();
@@ -488,17 +489,15 @@
       }
     });
 
-    // 【重要】UI更新：超過時は「+」表示に変更
     function updateDistUI() {
       txtDist.innerText = totalDist.toFixed(2);
       var rem = targetDist - totalDist;
       if (rem < 0) {
-        // 超過時はプラス表記（例: +3.08m）
         txtRemain.innerText = '+' + Math.abs(rem).toFixed(2);
-        txtRemain.style.color = '#ef4444'; // 赤字
+        txtRemain.style.color = '#ef4444';
       } else {
         txtRemain.innerText = rem.toFixed(2);
-        txtRemain.style.color = '#38bdf8'; // 水色
+        txtRemain.style.color = '#38bdf8';
       }
     }
 
@@ -526,7 +525,6 @@
       }
     });
 
-    // 【重要】動画読込：停止状態（0.0s）でロード待機
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -535,12 +533,13 @@
       vBar.style.display = 'flex';
       v.playbackRate = currentPlaybackRate;
       v.currentTime = 0;
-      v.pause(); // 停止状態で待機
+      v.pause();
       vbPlay.innerText = '再生 ▶';
       isPaused = true;
       bPause.className = 'green';
       bPause.innerText = '測定再開 ▶';
       isManualTracking = false;
+      hasPrevProf = false;
       startLoop();
     });
 
@@ -577,7 +576,7 @@
       } else {
         bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸';
         if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
-        prevProfile = null;
+        hasPrevProf = false;
       }
     });
 
@@ -587,149 +586,147 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // メイン解析ループ
+    // 解析ループ（メモリ負荷極小化・約30FPSスロットリング）
     function mainLoop(now) {
-      if (v.readyState >= 2 && v.videoWidth > 0) {
-        var pw = 160; var ph = 32;
-        if (cProc.width !== pw || cProc.height !== ph) { cProc.width = pw; cProc.height = ph; }
+      if (now - lastProcessTime > 30) { // 約30FPSで処理してSafariのクラッシュを防止
+        lastProcessTime = now;
 
-        var vw = v.videoWidth;
-        var vh = v.videoHeight;
-        var sRect = stage.getBoundingClientRect();
-        var bRect = targetBox.getBoundingClientRect();
+        if (v.readyState >= 2 && v.videoWidth > 0) {
+          var vw = v.videoWidth;
+          var vh = v.videoHeight;
+          var sRect = stage.getBoundingClientRect();
+          var bRect = targetBox.getBoundingClientRect();
 
-        var scale = Math.max(sRect.width / vw, sRect.height / vh);
-        var rw = vw * scale;
-        var rh = vh * scale;
-        var ox = (sRect.width - rw) / 2;
-        var oy = (sRect.height - rh) / 2;
+          var scale = Math.max(sRect.width / vw, sRect.height / vh);
+          var rw = vw * scale;
+          var rh = vh * scale;
+          var ox = (sRect.width - rw) / 2;
+          var oy = (sRect.height - rh) / 2;
 
-        var sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
-        var sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
-        var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
-        var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
+          var sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
+          var sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
+          var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
+          var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
 
-        ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, pw, ph);
-        var imgData = ctxProc.getImageData(0, 0, pw, ph).data;
+          ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
+          var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
 
-        var curProf = new Float32Array(pw);
-        var whiteCountTotal = 0;
-        var yellowCountTotal = 0;
+          var whiteCountTotal = 0;
+          var yellowCountTotal = 0;
 
-        for (var x = 0; x < pw; x++) {
-          var sumG = 0;
-          for (var y = 0; y < ph; y++) {
-            var idx = (y * pw + x) * 4;
-            var r = imgData[idx];
-            var g = imgData[idx+1];
-            var b = imgData[idx+2];
-            var gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          for (var x = 0; x < PW; x++) {
+            var sumG = 0;
+            for (var y = 0; y < PH; y++) {
+              var idx = (y * PW + x) * 4;
+              var r = imgData[idx];
+              var g = imgData[idx+1];
+              var b = imgData[idx+2];
 
-            if (r > 210 && g > 210 && b > 210) whiteCountTotal++;
-            if (r > 160 && g > 150 && b < 100 && (r + g - 2 * b) > 110) yellowCountTotal++;
+              if (r > 210 && g > 210 && b > 210) whiteCountTotal++;
+              if (r > 160 && g > 150 && b < 100 && (r + g - 2 * b) > 110) yellowCountTotal++;
 
-            sumG += gray;
-          }
-          curProf[x] = sumG / ph;
-        }
-
-        // 自動モード時のテープ検知
-        if (operationMode === 'AUTO') {
-          var isWhitePresent = whiteCountTotal > (pw * ph * 0.25);
-          var isYellowPresent = yellowCountTotal > (pw * ph * 0.12);
-
-          if (autoState === 'WAIT_HEAD_INSIDE' && isWhitePresent) {
-            autoState = 'WAIT_HEAD_TRAILING';
-            statusBadge.innerText = 'ヘッド通過中...';
-          } else if (autoState === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
-            autoState = 'TRACKING_WAIT_YEL1';
-            totalDist = 0.0;
-            totalPxSinceStart = 0.0;
-            statusBadge.className = 'active';
-            statusBadge.innerText = '測定中 (1m黄待ち)';
-            speak('測定を開始します。測定を開始します。', 2);
-          } else if (autoState === 'TRACKING_WAIT_YEL1') {
-            if (isYellowPresent) {
-              isInsideYellow = true;
-            } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
-              isInsideYellow = false;
-              autoState = 'TRACKING_WAIT_YEL2';
-              scaleFactor = totalPxSinceStart / 1000.0;
-              totalDist = 1.0;
-              statusBadge.className = 'cal1';
-              statusBadge.innerText = '1次校正済 (2m黄待ち)';
-              speak('1メートル通過、1次校正完了', 1);
+              sumG += 0.299 * r + 0.587 * g + 0.114 * b;
             }
-          } else if (autoState === 'TRACKING_WAIT_YEL2') {
-            if (isYellowPresent) {
-              isInsideYellow = true;
-            } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
-              isInsideYellow = false;
-              autoState = 'TRACKING_FINAL';
-              scaleFactor = totalPxSinceStart / 2000.0;
-              totalDist = 2.0;
-              statusBadge.className = 'cal2';
-              statusBadge.innerText = '本校正完了 (最高精度)';
-              speak('2メートル通過、本校正完了しました', 1);
+            curProf[x] = sumG / PH;
+          }
+
+          // 自動モード
+          if (operationMode === 'AUTO') {
+            var isWhitePresent = whiteCountTotal > (PW * PH * 0.25);
+            var isYellowPresent = yellowCountTotal > (PW * PH * 0.12);
+
+            if (autoState === 'WAIT_HEAD_INSIDE' && isWhitePresent) {
+              autoState = 'WAIT_HEAD_TRAILING';
+              statusBadge.innerText = 'ヘッド通過中...';
+            } else if (autoState === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
+              autoState = 'TRACKING_WAIT_YEL1';
+              totalDist = 0.0;
+              totalPxSinceStart = 0.0;
+              statusBadge.className = 'active';
+              statusBadge.innerText = '測定中 (1m黄待ち)';
+              speak('測定を開始します。測定を開始します。', 2);
+            } else if (autoState === 'TRACKING_WAIT_YEL1') {
+              if (isYellowPresent) {
+                isInsideYellow = true;
+              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
+                isInsideYellow = false;
+                autoState = 'TRACKING_WAIT_YEL2';
+                scaleFactor = totalPxSinceStart / 1000.0;
+                totalDist = 1.0;
+                statusBadge.className = 'cal1';
+                statusBadge.innerText = '1次校正済 (2m黄待ち)';
+                speak('1メートル通過、1次校正完了', 1);
+              }
+            } else if (autoState === 'TRACKING_WAIT_YEL2') {
+              if (isYellowPresent) {
+                isInsideYellow = true;
+              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
+                isInsideYellow = false;
+                autoState = 'TRACKING_FINAL';
+                scaleFactor = totalPxSinceStart / 2000.0;
+                totalDist = 2.0;
+                statusBadge.className = 'cal2';
+                statusBadge.innerText = '本校正完了 (最高精度)';
+                speak('2メートル通過、本校正完了しました', 1);
+              }
             }
           }
-        }
 
-        // 相関トラッキング
-        if (!isPaused && prevProfile) {
-          var maxS = 16, bestS = 0, minDiff = 9999999;
-          for (var s = -maxS; s <= maxS; s++) {
-            var diff = 0;
-            for (var i = maxS; i < pw - maxS; i++) {
-              diff += Math.abs(prevProfile[i] - curProf[i + s]);
+          // 相関トラッキング
+          if (!isPaused && hasPrevProf) {
+            var maxS = 16, bestS = 0, minDiff = 9999999;
+            for (var s = -maxS; s <= maxS; s++) {
+              var diff = 0;
+              for (var i = maxS; i < PW - maxS; i++) {
+                diff += Math.abs(prevProf[i] - curProf[i + s]);
+              }
+              if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
-            if (diff < minDiff) { minDiff = diff; bestS = s; }
-          }
 
-          var shiftPx = bestS * (swSrc / pw);
-          var dt = (now - lastLoopTime) / 1000.0;
+            var shiftPx = bestS * (swSrc / PW);
 
-          if (shiftPx < -3.5) {
-            triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
-          }
+            if (shiftPx < -3.5) {
+              triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
+            }
 
-          var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
-                         (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
+            var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
+                           (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
-          if (canTrack && Math.abs(shiftPx) > 0.005) {
-            var deltaM = (shiftPx / scaleFactor) / 1000.0;
-            totalDist += deltaM;
-            totalPxSinceStart += shiftPx;
-            updateDistUI();
-            checkDistanceAnnouncements(totalDist);
+            if (canTrack && Math.abs(shiftPx) > 0.005) {
+              var deltaM = (shiftPx / scaleFactor) / 1000.0;
+              totalDist += deltaM;
+              totalPxSinceStart += shiftPx;
+              updateDistUI();
+              checkDistanceAnnouncements(totalDist);
 
-            if (dt > 0 && dt < 0.25) {
-              var instSpeed = (deltaM / dt) * 60.0;
+              var instSpeed = (deltaM / 0.033) * 60.0;
               if (instSpeed > 50.0) {
                 triggerError('⚠️ 異常急加速 / スリップ検知', '急加速検知');
               }
               speedSamples.push(Math.max(0, instSpeed));
+            } else {
+              speedSamples.push(0);
             }
-          } else {
-            speedSamples.push(0);
+
+            if (now - lastSpeedTime > 500) {
+              if (speedSamples.length > 0) {
+                var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
+                currentSpeed = currentSpeed * 0.3 + avg * 0.7;
+                speedSamples = [];
+              } else {
+                currentSpeed = 0.0;
+              }
+              txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
+              lastSpeedTime = now;
+            }
           }
 
-          if (now - lastSpeedTime > 500) {
-            if (speedSamples.length > 0) {
-              var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
-              currentSpeed = currentSpeed * 0.3 + avg * 0.7;
-              speedSamples = [];
-            } else {
-              currentSpeed = 0.0;
-            }
-            txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
-            lastSpeedTime = now;
-          }
+          // 次フレーム用バッファにコピー
+          prevProf.set(curProf);
+          hasPrevProf = true;
         }
-        prevProfile = curProf;
       }
 
-      lastLoopTime = now;
       requestAnimationFrame(mainLoop);
     }
   </script>
