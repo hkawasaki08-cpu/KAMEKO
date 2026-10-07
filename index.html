@@ -1,4 +1,444 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>(仮称)カメラ式ケーブル距離計</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #111;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+    .title { font-size: 14px; font-weight: bold; color: #4ade80; }
+    #fps { font-size: 12px; color: #aaa; }
+
+    #stage {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    #dash {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+    }
+    .card {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 6px 10px;
+      text-align: center;
+    }
+    .card-lbl { font-size: 10px; color: #aaa; }
+    .card-val { font-size: 24px; font-weight: bold; }
+    .card-unit { font-size: 11px; color: #888; margin-left: 2px; }
+
+    /* テスト用動画操作バー */
+    #v-bar {
+      position: absolute;
+      bottom: 10px;
+      left: 8px;
+      right: 8px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      padding: 6px 8px;
+      z-index: 25;
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .v-row { display: flex; gap: 4px; align-items: center; }
+    .v-btn {
+      flex: 1;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid #475569;
+      padding: 6px 0;
+      border-radius: 4px;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    /* エラー・状態表示 */
+    #msg {
+      position: absolute;
+      top: 75px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: #38bdf8;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      z-index: 20;
+      white-space: nowrap;
+    }
+
+    footer {
+      background: #111;
+      padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 10px));
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-top: 1px solid #333;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+    .btn-row { display: flex; gap: 6px; }
+    button, label.btn {
+      flex: 1;
+      background: #2a2a2a;
+      color: #fff;
+      border: 1px solid #444;
+      padding: 9px 0;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      text-align: center;
+      cursor: pointer;
+    }
+    button.green { background: #16a34a; border-color: #15803d; }
+    button.orange { background: #d97706; border-color: #b45309; }
+    input[type="file"] { display: none; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="title">(仮称)カメラ式ケーブル距離計</div>
+    <div id="fps">0 FPS</div>
+  </header>
+
+  <div id="stage">
+    <video id="v" playsinline webkit-playsinline muted autoplay loop></video>
+    <canvas id="c-proc" style="display:none;"></canvas>
+    <canvas id="overlay"></canvas>
+
+    <div id="dash">
+      <div class="card">
+        <div class="card-lbl">延線距離</div>
+        <div><span id="txt-dist" class="card-val">0.00</span><span class="card-unit">m</span></div>
+      </div>
+      <div class="card">
+        <div class="card-lbl">速度 (平均)</div>
+        <div><span id="txt-speed" class="card-val">0.0</span><span class="card-unit">m/分</span></div>
+      </div>
+    </div>
+
+    <div id="msg">下の「カメラ起動」または「動画読込」を押してください</div>
+
+    <!-- 動画操作バー（動画読込時のみ表示） -->
+    <div id="v-bar">
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:#38bdf8;">
+        <span>🎬 動画コントローラー</span>
+        <span id="v-time">0.0s</span>
+      </div>
+      <div class="v-row">
+        <button class="v-btn" id="vb-b1">-1秒</button>
+        <button class="v-btn" id="vb-bstep">◀ コマ戻</button>
+        <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
+        <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
+        <button class="v-btn" id="vb-f1">+1秒</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="btn-row">
+      <button id="b-m01">-0.1m</button>
+      <button id="b-p01">+0.1m</button>
+      <button id="b-set">数値設定</button>
+      <button id="b-zero" style="color:#f87171;">0mリセット</button>
+    </div>
+    <div class="btn-row">
+      <button id="b-pause" class="orange">一時停止 ⏸</button>
+      <button id="b-cam" class="green">カメラ起動</button>
+      <label class="btn" for="f-video">動画読込</label>
+      <input type="file" id="f-video" accept="video/*">
+    </div>
+  </footer>
+
+  <script>
+    // 状態管理
+    var scaleFactor = 2.5; // px/mm
+    var totalDist = 0.0;
+    var isRunning = false;
+    var isPaused = false;
+
+    var speedSamples = [];
+    var lastSpeedTime = performance.now();
+    var currentSpeed = 0.0;
+
+    var lastLoopTime = performance.now();
+    var frameCount = 0;
+    var lastFpsTime = performance.now();
+    var prevProfile = null;
+
+    var v = document.getElementById('v');
+    var cProc = document.getElementById('c-proc');
+    var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
+    var overlay = document.getElementById('overlay');
+    var ctxOverlay = overlay.getContext('2d');
+
+    var txtDist = document.getElementById('txt-dist');
+    var txtSpeed = document.getElementById('txt-speed');
+    var txtFps = document.getElementById('fps');
+    var msg = document.getElementById('msg');
+    var vBar = document.getElementById('v-bar');
+    var vTime = document.getElementById('v-time');
+    var bPause = document.getElementById('b-pause');
+
+    // 1. カメラ起動
+    document.getElementById('b-cam').addEventListener('click', function() {
+      vBar.style.display = 'none';
+      msg.innerText = "カメラ起動中...";
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
+        }).then(function(stream) {
+          v.srcObject = stream;
+          v.play();
+          msg.innerText = "緑枠にケーブルを合わせてください";
+          isPaused = false;
+          bPause.innerText = '一時停止 ⏸';
+          startLoop();
+        }).catch(function(e) {
+          msg.innerText = "エラー: " + e.message;
+        });
+      } else {
+        msg.innerText = "カメラ非対応ブラウザです";
+      }
+    });
+
+    // 2. 動画読込
+    document.getElementById('f-video').addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      if (v.srcObject) {
+        v.srcObject.getTracks().forEach(function(t) { t.stop(); });
+        v.srcObject = null;
+      }
+      v.src = URL.createObjectURL(file);
+      vBar.style.display = 'flex';
+      v.play();
+      msg.innerText = "動画テスト中";
+      isPaused = false;
+      bPause.innerText = '一時停止 ⏸';
+      startLoop();
+    });
+
+    // 3. 動画コントローラー
+    var vbPlay = document.getElementById('vb-play');
+    vbPlay.addEventListener('click', function() {
+      if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
+      else { v.pause(); vbPlay.innerText = '再生 ▶'; }
+    });
+    document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
+    document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 1); });
+    document.getElementById('vb-bstep').addEventListener('click', function() { v.pause(); vbPlay.innerText = '再生 ▶'; v.currentTime = Math.max(0, v.currentTime - 0.033); });
+    document.getElementById('vb-fstep').addEventListener('click', function() { v.pause(); vbPlay.innerText = '再生 ▶'; v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
+
+    v.addEventListener('timeupdate', function() {
+      if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
+    });
+
+    // 4. 手動加減算・リセット
+    document.getElementById('b-p01').addEventListener('click', function() { totalDist += 0.1; txtDist.innerText = totalDist.toFixed(2); });
+    document.getElementById('b-m01').addEventListener('click', function() { totalDist = Math.max(0, totalDist - 0.1); txtDist.innerText = totalDist.toFixed(2); });
+    document.getElementById('b-zero').addEventListener('click', function() {
+      totalDist = 0.0;
+      currentSpeed = 0.0;
+      speedSamples = [];
+      txtDist.innerText = "0.00";
+      txtSpeed.innerText = "0.0";
+    });
+    document.getElementById('b-set').addEventListener('click', function() {
+      var val = window.prompt("延線距離(m)を入力:", totalDist.toFixed(2));
+      if (val !== null && !isNaN(parseFloat(val))) {
+        totalDist = Math.max(0, parseFloat(val));
+        txtDist.innerText = totalDist.toFixed(2);
+      }
+    });
+
+    // 5. 測定一時停止
+    bPause.addEventListener('click', function() {
+      isPaused = !isPaused;
+      if (isPaused) {
+        bPause.innerText = '測定再開 ▶';
+        msg.innerText = "測定一時停止中";
+        txtSpeed.innerText = "0.0";
+      } else {
+        bPause.innerText = '一時停止 ⏸';
+        msg.innerText = "測定中";
+        prevProfile = null;
+      }
+    });
+
+    function startLoop() {
+      if (isRunning) return;
+      isRunning = true;
+      requestAnimationFrame(mainLoop);
+    }
+
+    // 6. メイン解析ループ
+    function mainLoop(now) {
+      var stage = document.getElementById('stage');
+      var sw = stage.clientWidth;
+      var sh = stage.clientHeight;
+
+      if (overlay.width !== sw || overlay.height !== sh) {
+        overlay.width = sw;
+        overlay.height = sh;
+      }
+
+      // 画面中央の測定枠
+      var bw = Math.floor(sw * 0.85);
+      var bh = 60;
+      var bx = Math.floor((sw - bw) / 2);
+      var by = Math.floor(sh * 0.55 - bh / 2);
+
+      // ガイド枠描画
+      ctxOverlay.clearRect(0, 0, sw, sh);
+      ctxOverlay.strokeStyle = isPaused ? '#94a3b8' : '#22c55e';
+      ctxOverlay.lineWidth = 2;
+      ctxOverlay.strokeRect(bx, by, bw, bh);
+      ctxOverlay.fillStyle = isPaused ? '#94a3b8' : '#22c55e';
+      ctxOverlay.font = '11px sans-serif';
+      ctxOverlay.fillText(isPaused ? '⏸ 測定停止中' : '🎯 ケーブル測定枠', bx, by - 6);
+
+      // 解析処理
+      if (v.readyState >= 2 && v.videoWidth > 0) {
+        var pw = 160;
+        var ph = 20;
+        if (cProc.width !== pw) { cProc.width = pw; cProc.height = ph; }
+
+        var vw = v.videoWidth;
+        var vh = v.videoHeight;
+        var scale = Math.max(sw / vw, sh / vh);
+        var rw = vw * scale;
+        var rh = vh * scale;
+        var ox = (sw - rw) / 2;
+        var oy = (sh - rh) / 2;
+
+        var sx = Math.max(0, (bx - ox) / scale);
+        var sy = Math.max(0, (by - oy) / scale);
+        var swSrc = Math.min(vw - sx, bw / scale);
+        var shSrc = Math.min(vh - sy, bh / scale);
+
+        ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, pw, ph);
+        var imgData = ctxProc.getImageData(0, 0, pw, ph).data;
+
+        // 1次元輝度プロファイル抽出
+        var curProf = new Float32Array(pw);
+        for (var x = 0; x < pw; x++) {
+          var sum = 0, cnt = 0;
+          for (var y = 0; y < ph; y++) {
+            var idx = (y * pw + x) * 4;
+            var g = 0.299 * imgData[idx] + 0.587 * imgData[idx+1] + 0.114 * imgData[idx+2];
+            if (g < 235) { sum += g; cnt++; }
+          }
+          curProf[x] = cnt > 0 ? sum / cnt : 0;
+        }
+
+        if (!isPaused && prevProfile) {
+          // シフト量探索
+          var maxS = 10, bestS = 0, minDiff = 999999;
+          for (var s = -maxS; s <= maxS; s++) {
+            var diff = 0;
+            for (var i = maxS; i < pw - maxS; i++) {
+              diff += Math.abs(prevProfile[i] - curProf[i + s]);
+            }
+            if (diff < minDiff) { minDiff = diff; bestS = s; }
+          }
+
+          var shiftPx = bestS * (swSrc / pw);
+          var deltaM = (shiftPx / scaleFactor) / 1000.0;
+          var dt = (now - lastLoopTime) / 1000.0;
+
+          if (Math.abs(deltaM) < 0.04 && Math.abs(deltaM) > 0.0006) {
+            totalDist += deltaM;
+            txtDist.innerText = totalDist.toFixed(2);
+
+            if (dt > 0 && dt < 0.25) {
+              speedSamples.push(Math.max(0, (deltaM / dt) * 60.0));
+            }
+          } else {
+            speedSamples.push(0);
+          }
+
+          // 速度平滑化 (0.5秒平均)
+          if (now - lastSpeedTime > 500) {
+            if (speedSamples.length > 0) {
+              var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
+              currentSpeed = currentSpeed * 0.3 + avg * 0.7;
+              speedSamples = [];
+            } else {
+              currentSpeed = 0.0;
+            }
+            txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
+            lastSpeedTime = now;
+          }
+        }
+        prevProfile = curProf;
+
+        // FPSカウント
+        frameCount++;
+        if (now - lastFpsTime > 1000) {
+          txtFps.innerText = frameCount + " FPS";
+          frameCount = 0;
+          lastFpsTime = now;
+        }
+      }
+
+      lastLoopTime = now;
+      requestAnimationFrame(mainLoop);
+    }
+  </script>
+</body>
+</html>
+
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
