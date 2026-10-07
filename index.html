@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>(仮称)カメラ式ケーブル距離計 - 手持ちテスト版</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>(仮称)カメラ式ケーブル距離計 - KAMEKO</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -14,10 +14,12 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      -webkit-user-select: none;
+      user-select: none;
     }
     header {
       background: #1e293b;
-      padding: 8px 16px;
+      padding: 8px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -43,7 +45,7 @@
     }
     #overlay-canvas { z-index: 10; pointer-events: none; }
 
-    /* ダッシュボードパネル */
+    /* ダッシュボード */
     #dashboard {
       position: absolute;
       top: 10px;
@@ -63,13 +65,13 @@
       text-align: center;
     }
     .card-label { font-size: 11px; color: #94a3b8; margin-bottom: 2px; }
-    .card-val { font-size: 24px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
+    .card-val { font-size: 26px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
     .card-unit { font-size: 12px; color: #64748b; margin-left: 2px; }
 
-    /* ステータスバッジ */
+    /* ステータスバー */
     #status-bar {
       position: absolute;
-      bottom: 75px;
+      bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(15, 23, 42, 0.9);
@@ -81,22 +83,24 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      white-space: nowrap;
     }
     .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
     .status-dot.warn { background: #eab308; }
     .status-dot.danger { background: #ef4444; }
+    .status-dot.paused { background: #64748b; }
 
-    /* 操作バー */
+    /* コントロールフッター */
     footer {
       background: #1e293b;
-      padding: 10px 14px;
+      padding: 10px 12px 14px;
       border-top: 1px solid #334155;
       display: flex;
       flex-direction: column;
       gap: 8px;
       z-index: 30;
     }
-    .btn-group { display: flex; gap: 8px; }
+    .btn-row { display: flex; gap: 6px; }
     button, label.btn-file {
       flex: 1;
       background: #334155;
@@ -111,7 +115,9 @@
       touch-action: manipulation;
     }
     button.primary { background: #0284c7; border-color: #0369a1; }
-    button.reset { background: #475569; }
+    button.pause { background: #d97706; border-color: #b45309; }
+    button.resume { background: #16a34a; border-color: #15803d; }
+    button.adjust { background: #1e293b; border-color: #475569; font-weight: bold; font-size: 14px; }
     input[type="file"] { display: none; }
   </style>
 </head>
@@ -128,12 +134,12 @@
     <canvas id="overlay-canvas"></canvas>
 
     <div id="dashboard">
-      <div class="card">
-        <div class="card-label">延線距離</div>
+      <div class="card" id="card-dist" style="cursor: pointer;">
+        <div class="card-label">延線距離 (タップで直接編集)</div>
         <div><span id="txt-dist" class="card-val">0.00</span><span class="card-unit">m</span></div>
       </div>
       <div class="card">
-        <div class="card-label">延線速度</div>
+        <div class="card-label">平均速度 (0.5s更新)</div>
         <div><span id="txt-speed" class="card-val">0.0</span><span class="card-unit">m/分</span></div>
       </div>
     </div>
@@ -145,26 +151,41 @@
   </div>
 
   <footer>
-    <div class="btn-group">
-      <button id="btn-cam" class="primary">iPhoneカメラ起動</button>
-      <label class="btn-file" for="file-video">動画読込テスト</label>
-      <input type="file" id="file-video" accept="video/*">
+    <!-- 段1：手動加減算 (+0.1m / -0.1m) ＆ 直接入力 -->
+    <div class="btn-row">
+      <button id="btn-minus" class="adjust">-0.1m</button>
+      <button id="btn-plus" class="adjust">+0.1m</button>
+      <button id="btn-direct-input" class="adjust">数値直接入力</button>
+      <button id="btn-reset" class="adjust" style="color: #ef4444;">0mリセット</button>
     </div>
-    <div class="btn-group">
-      <button id="btn-reset" class="reset">ゼロ点リセット (0m)</button>
-      <button id="btn-scale">スケール調整 (現: <span id="txt-scale">2.8</span> px/mm)</button>
+
+    <!-- 段2：計測一時停止 / 再開 ＆ カメラ起動 -->
+    <div class="btn-row">
+      <button id="btn-toggle-pause" class="pause">一時停止 ⏸</button>
+      <button id="btn-cam" class="primary">iPhoneカメラ起動</button>
+      <label class="btn-file" for="file-video">動画テスト</label>
+      <input type="file" id="file-video" accept="video/*">
     </div>
   </footer>
 
   <script>
+    // --- 測定パラメータ ---
     let scaleFactor = 2.8; // px/mm
     let totalDist = 0.0;
-    let currSpeed = 0.0;
     let isRunning = false;
+    let isPaused = false;
+
+    // 速度平滑化バッファ（移動平均用）
+    let speedSamples = [];
+    let lastSpeedUpdate = performance.now();
+    let displaySpeed = 0.0;
+
+    // パフォーマンス計測
     let lastTime = performance.now();
     let frameCnt = 0;
     let lastFpsTime = performance.now();
 
+    // DOM
     const video = document.getElementById('v-elem');
     const calcCanvas = document.getElementById('calc-canvas');
     const calcCtx = calcCanvas.getContext('2d', { willReadFrequently: true });
@@ -174,14 +195,14 @@
     const txtDist = document.getElementById('txt-dist');
     const txtSpeed = document.getElementById('txt-speed');
     const txtFps = document.getElementById('fps');
-    const txtScale = document.getElementById('txt-scale');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
+    const btnTogglePause = document.getElementById('btn-toggle-pause');
 
     let prevCableProfile = null;
     let prevBgProfile = null;
 
-    // カメラ起動
+    // --- カメラ起動 ---
     document.getElementById('btn-cam').addEventListener('click', async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -190,36 +211,81 @@
         });
         video.srcObject = stream;
         video.play();
+        isPaused = false;
+        btnTogglePause.className = 'pause';
+        btnTogglePause.innerText = '一時停止 ⏸';
         start();
       } catch (e) {
         alert('カメラ起動エラー: ' + e.message);
       }
     });
 
-    // ファイル読込
+    // --- 動画ファイル読込 ---
     document.getElementById('file-video').addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (!file) return;
       video.srcObject = null;
       video.src = URL.createObjectURL(file);
       video.play();
+      isPaused = false;
+      btnTogglePause.className = 'pause';
+      btnTogglePause.innerText = '一時停止 ⏸';
       start();
     });
 
-    document.getElementById('btn-reset').addEventListener('click', () => {
-      totalDist = 0.0;
-      currSpeed = 0.0;
-      txtDist.innerText = "0.00";
-      txtSpeed.innerText = "0.0";
-    });
-
-    document.getElementById('btn-scale').addEventListener('click', () => {
-      const val = prompt('1mmあたりの画素数(px/mm)を入力:', scaleFactor);
-      if (val && !isNaN(parseFloat(val))) {
-        scaleFactor = parseFloat(val);
-        txtScale.innerText = scaleFactor.toFixed(1);
+    // --- 一時停止 / 再開ボタン ---
+    btnTogglePause.addEventListener('click', () => {
+      isPaused = !isPaused;
+      if (isPaused) {
+        btnTogglePause.className = 'resume';
+        btnTogglePause.innerText = '測定再開 ▶';
+        statusDot.className = 'status-dot paused';
+        statusText.innerText = '測定一時停止中';
+        txtSpeed.innerText = "0.0";
+      } else {
+        btnTogglePause.className = 'pause';
+        btnTogglePause.innerText = '一時停止 ⏸';
+        prevCableProfile = null;
+        prevBgProfile = null;
       }
     });
+
+    // --- 手動加減算 (+0.1m / -0.1m) ---
+    document.getElementById('btn-plus').addEventListener('click', () => {
+      totalDist += 0.1;
+      updateDistDisplay();
+    });
+    document.getElementById('btn-minus').addEventListener('click', () => {
+      totalDist = Math.max(0, totalDist - 0.1);
+      updateDistDisplay();
+    });
+
+    // --- 数値直接入力（ボタンおよびカードタップ） ---
+    function promptManualDistance() {
+      const current = totalDist.toFixed(2);
+      const val = prompt('現在の延線距離(m)を直接入力してください:', current);
+      if (val !== null && !isNaN(parseFloat(val))) {
+        totalDist = Math.max(0, parseFloat(val));
+        updateDistDisplay();
+      }
+    }
+    document.getElementById('btn-direct-input').addEventListener('click', promptManualDistance);
+    document.getElementById('card-dist').addEventListener('click', promptManualDistance);
+
+    // --- 0mリセット ---
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      if (confirm('測定距離を 0.00m にリセットしますか？')) {
+        totalDist = 0.0;
+        speedSamples = [];
+        displaySpeed = 0.0;
+        updateDistDisplay();
+        txtSpeed.innerText = "0.0";
+      }
+    });
+
+    function updateDistDisplay() {
+      txtDist.innerText = totalDist.toFixed(2);
+    }
 
     function start() {
       if (isRunning) return;
@@ -227,6 +293,7 @@
       requestAnimationFrame(mainLoop);
     }
 
+    // --- メイン解析ループ ---
     function mainLoop(now) {
       if (!isRunning) return;
 
@@ -253,141 +320,68 @@
         const cableH = Math.max(8, Math.floor(procH * 0.2));
         const cableImg = calcCtx.getImageData(0, cableY, procW, cableH);
 
-        // 背景帯（上部10%〜20%：手ブレ補正用アンカー）
-        const bgY = Math.floor(procH * 0.1);
+        // 背景帯（上部8%〜18%：手ブレ検出用）
+        const bgY = Math.floor(procH * 0.08);
         const bgH = Math.max(8, Math.floor(procH * 0.1));
         const bgImg = calcCtx.getImageData(0, bgY, procW, bgH);
 
-        // 1. ハレーション監視
         const halation = detectHalation(cableImg.data);
-
-        // 2. 輝度プロファイル計算
         const currCableProf = getProfile(cableImg.data, procW, cableH, true);
         const currBgProf = getProfile(bgImg.data, procW, bgH, false);
 
-        if (prevCableProfile && prevBgProfile) {
+        if (!isPaused && prevCableProfile && prevBgProfile) {
           const shiftCable = calcShift(prevCableProfile, currCableProf);
           const shiftBg = calcShift(prevBgProfile, currBgProf);
 
-          // 手ブレ相殺：ケーブル移動量 - 背景移動量
-          const pureShiftPx = (shiftCable - shiftBg) * (vw / procW);
+          // === 手持ち暴走防止フィルター ===
+          // 1. 背景の揺れが過大な場合（急な手のあおり）はコマを捨てる
+          const isJitterTooHigh = Math.abs(shiftBg) > 8; 
 
-          // 物理距離換算 (px -> m)
-          const dMeter = (pureShiftPx / scaleFactor) / 1000.0;
-
-          // 速度制限フィルタ（分速35m ≒ 0.06m/frame以下を有効判定）
-          if (Math.abs(dMeter) < 0.06) {
-            totalDist += dMeter;
-            const dt = (now - lastTime) / 1000.0;
-            if (dt > 0 && dt < 0.2) {
-              const spd = (dMeter / dt) * 60.0;
-              currSpeed = currSpeed * 0.85 + spd * 0.15;
-            }
+          // 2. 背景とケーブルが全く同じ方向に動いている場合（手持ちカメラ自体の並進移動）をカット
+          let pureShiftPx = 0;
+          if (!isJitterTooHigh) {
+            pureShiftPx = (shiftCable - shiftBg) * (vw / procW);
           }
 
-          // ステータス更新
-          updateStatus(halation, Math.abs(shiftBg));
+          // 3. デッドゾーン（微小な手震えノイズ 0.5mm未満 を切り捨て）
+          const dMeter = (pureShiftPx / scaleFactor) / 1000.0;
+          const dt = (now - lastTime) / 1000.0;
+
+          // 4. 速度異常値カット（分速 30m/min ≒ 秒速0.5mを超える急激なジャンプは除外）
+          const maxAllowedShiftPerFrame = 0.04; // 1フレームあたり4cm以上の瞬間移動はノイズ判定
+          if (!isJitterTooHigh && Math.abs(dMeter) < maxAllowedShiftPerFrame && Math.abs(dMeter) > 0.0005) {
+            totalDist += dMeter;
+            updateDistDisplay();
+
+            if (dt > 0 && dt < 0.2) {
+              const instantSpeed = (dMeter / dt) * 60.0;
+              speedSamples.push(Math.max(0, instantSpeed));
+            }
+          } else if (Math.abs(dMeter) <= 0.0005) {
+            speedSamples.push(0);
+          }
+
+          // === 速度表示の平滑化（0.5秒周期で平均値更新） ===
+          if (now - lastSpeedUpdate > 500) {
+            if (speedSamples.length > 0) {
+              const sum = speedSamples.reduce((a, b) => a + b, 0);
+              displaySpeed = sum / speedSamples.length;
+              speedSamples = [];
+            } else {
+              displaySpeed = 0.0;
+            }
+            txtSpeed.innerText = displaySpeed.toFixed(1);
+            lastSpeedUpdate = now;
+          }
+
+          updateStatus(halation, isJitterTooHigh);
         }
 
         prevCableProfile = currCableProf;
         prevBgProfile = currBgProf;
 
-        // UI表示
-        txtDist.innerText = totalDist.toFixed(2);
-        txtSpeed.innerText = Math.max(0, currSpeed).toFixed(1);
         renderGuides(overlayCanvas.width, overlayCanvas.height);
 
         // FPS
         frameCnt++;
-        if (now - lastFpsTime > 1000) {
-          txtFps.innerText = `${frameCnt} FPS`;
-          frameCnt = 0;
-          lastFpsTime = now;
-        }
-      }
-
-      lastTime = now;
-      requestAnimationFrame(mainLoop);
-    }
-
-    function getProfile(data, w, h, filterSpecular) {
-      const prof = new Float32Array(w);
-      for (let x = 0; x < w; x++) {
-        let sum = 0, count = 0;
-        for (let y = 0; y < h; y++) {
-          const i = (y * w + x) * 4;
-          const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-          if (!filterSpecular || gray < 235) { // 反射テカリカット
-            sum += gray;
-            count++;
-          }
-        }
-        prof[x] = count > 0 ? sum / count : 0;
-      }
-      return prof;
-    }
-
-    function calcShift(p, c) {
-      const maxS = 14;
-      let best = 0, minD = Infinity;
-      for (let s = -maxS; s <= maxS; s++) {
-        let diff = 0, cnt = 0;
-        for (let i = maxS; i < p.length - maxS; i++) {
-          diff += Math.abs(p[i] - c[i + s]);
-          cnt++;
-        }
-        if (cnt > 0 && diff < minD) {
-          minD = diff;
-          best = s;
-        }
-      }
-      return best;
-    }
-
-    function detectHalation(data) {
-      let over = 0;
-      const total = data.length / 4;
-      for (let i = 0; i < data.length; i += 4) {
-        if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) over++;
-      }
-      return (over / total) > 0.08;
-    }
-
-    function updateStatus(isHalation, bgJitter) {
-      if (isHalation) {
-        statusDot.className = 'status-dot danger';
-        statusText.innerText = 'ハレーション検知（角度調整推奨）';
-      } else if (bgJitter > 4) {
-        statusDot.className = 'status-dot warn';
-        statusText.innerText = '手ブレ過大（脇を締めて固定）';
-      } else {
-        statusDot.className = 'status-dot';
-        statusText.innerText = 'トラッキング良好';
-      }
-    }
-
-    function renderGuides(w, h) {
-      const ctx = overlayCtx;
-      ctx.clearRect(0, 0, w, h);
-
-      // 背景アンカー枠（点線）
-      ctx.strokeStyle = '#64748b';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 4]);
-      ctx.strokeRect(w * 0.15, h * 0.1, w * 0.7, h * 0.1);
-      ctx.fillStyle = '#64748b';
-      ctx.font = '10px sans-serif';
-      ctx.fillText('手ブレ相殺アンカー(背景)', w * 0.15, h * 0.1 - 4);
-
-      // ケーブル測定枠（実線緑）
-      ctx.strokeStyle = '#22c55e';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([]);
-      ctx.strokeRect(w * 0.1, h * 0.4, w * 0.8, h * 0.2);
-      ctx.fillStyle = '#22c55e';
-      ctx.font = '11px sans-serif';
-      ctx.fillText('ケーブル測定ライン', w * 0.1, h * 0.4 - 6);
-    }
-  </script>
-</body>
-</html>
+        if (now -
