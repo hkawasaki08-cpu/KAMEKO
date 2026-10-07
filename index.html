@@ -128,7 +128,7 @@
     }
     .scale-tab.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; font-weight: bold; }
 
-    /* テスト用動画コントローラー（完全維持） */
+    /* テスト用動画コントローラー */
     #v-bar {
       position: absolute; bottom: 6px; left: 6px; right: 6px;
       background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
@@ -166,7 +166,7 @@
     button.green { background: #16a34a; border-color: #15803d; font-weight: bold; }
     button.orange { background: #d97706; border-color: #b45309; }
     button.purple { background: #7c3aed; border-color: #6d28d9; font-weight: bold; }
-    button.mic-on { background: #dc2626; border-color: #b91c1c; font-weight: bold; }
+    button.mic-on { background: #dc2626 !important; border-color: #b91c1c !important; font-weight: bold; }
     input[type="file"] { display: none; }
   </style>
 </head>
@@ -174,7 +174,7 @@
 
   <header>
     <div class="title">(仮称)カメラ式ケーブル距離計 - KAMEKO</div>
-    <div id="status-badge">手動測定中</div>
+    <div id="status-badge" style="background:#475569;">手動待機中 (スタート前)</div>
   </header>
 
   <div id="stage">
@@ -271,7 +271,9 @@
     var targetDist = 31.0;
     var isRunning = false;
     var isPaused = false;
-    var isManualTracking = true;
+
+    // スタート前は完全不感（計測しない）フラグ
+    var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
@@ -290,7 +292,7 @@
     var isReversing = false;
     var backwardStreak = 0;
 
-    // 固定バッファ（Safariクラッシュ完全防止ゼロアロケーション）
+    // 固定バッファ（ゼロアロケーション）
     var PW = 200;
     var PH = 32;
     var rawProf = new Float32Array(PW);
@@ -332,8 +334,7 @@
     var bMic = document.getElementById('b-mic');
 
     function speak(text, count) {
-      if (!window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
+      if (!('speechSynthesis' in window)) return;
       var times = count || 1;
       for (var i = 0; i < times; i++) {
         var uttr = new SpeechSynthesisUtterance(text);
@@ -387,34 +388,58 @@
       recognition = new SpeechRecognition();
       recognition.lang = 'ja-JP';
       recognition.continuous = true;
+      recognition.interimResults = false;
+
       recognition.onresult = function(event) {
-        var last = event.results.length - 1;
-        var cmd = event.results[last][0].transcript.trim().replace(/\s+/g, '');
-        if (cmd.includes('スタート') || cmd.includes('開始')) {
-          startManualMeasurement();
-        } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
-          setPauseState(true);
-          speak('ストップしました', 1);
-        } else if (cmd.includes('リセット')) {
-          resetAll();
-          speak('リセットしました', 1);
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            var cmd = event.results[i][0].transcript.trim().replace(/\s+/g, '');
+            handleVoiceCommand(cmd);
+          }
+        }
+      };
+
+      recognition.onend = function() {
+        if (isMicListening) {
+          try { recognition.start(); } catch(e) {}
+        }
+      };
+
+      recognition.onerror = function(e) {
+        if (e.error === 'not-allowed') {
+          isMicListening = false;
+          bMic.classList.remove('mic-on');
+          bMic.innerText = '🎤 音声操作 ON';
         }
       };
     }
 
+    function handleVoiceCommand(cmd) {
+      if (cmd.includes('スタート') || cmd.includes('開始')) {
+        startManualMeasurement();
+      } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
+        setPauseState(true);
+        speak('ストップしました', 1);
+      } else if (cmd.includes('リセット')) {
+        resetAll();
+        speak('リセットしました', 1);
+      }
+    }
+
     bMic.addEventListener('click', function() {
-      if (!SpeechRecognition) { alert('音声認識非対応のブラウザです'); return; }
+      if (!SpeechRecognition) {
+        alert('お使いのブラウザは音声認識に対応していません');
+        return;
+      }
       isMicListening = !isMicListening;
       if (isMicListening) {
-        try {
-          recognition.start();
-          bMic.className = 'mic-on';
-          bMic.innerText = '🎤 待受中';
-          speak('音声操作を開始します', 1);
-        } catch(e) {}
+        try { recognition.start(); } catch(e) {}
+        bMic.classList.add('mic-on');
+        bMic.innerText = '🎤 待受中';
+        speak('音声操作を開始します', 1);
       } else {
         recognition.stop();
-        bMic.className = '';
+        bMic.classList.remove('mic-on');
         bMic.innerText = '🎤 音声操作 ON';
         speak('音声操作を終了しました', 1);
       }
@@ -429,7 +454,7 @@
       tabManual.className = 'mode-tab';
       manualScaleBar.style.display = 'none';
       bManualStart.style.display = 'none';
-      boxSubtag.innerText = 'ヘッド後端:開始 / 黄2点:校正';
+      boxSubtag.innerText = 'ヘッド通過待ち (スタート前不感)';
       resetAll();
       speak('自動テープ検知モードに切り替えました', 1);
     });
@@ -441,9 +466,6 @@
       manualScaleBar.style.display = 'flex';
       bManualStart.style.display = 'flex';
       boxSubtag.innerText = '手動モード (テープ不要)';
-      statusBadge.className = '';
-      statusBadge.style.background = '#8b5cf6';
-      statusBadge.innerText = '手動測定中';
       resetAll();
       speak('手動運用モードです', 1);
     });
@@ -461,19 +483,28 @@
       mScaleClose.className = 'scale-tab';
     });
 
+    // 手動スタート：押した瞬間に強制0mリセット＆計測開始
     bManualStart.addEventListener('click', function() {
       startManualMeasurement();
     });
 
     function startManualMeasurement() {
       totalDist = 0.0;
+      totalPxSinceStart = 0.0;
       isManualTracking = true;
       setPauseState(false);
       hasPrevProf = false;
       announcedMarks = {};
       backwardStreak = 0;
       updateDistUI();
-      if (v.paused) v.play();
+
+      statusBadge.className = 'active';
+      statusBadge.innerText = '手動測定中';
+
+      if (v.paused) {
+        var p = v.play();
+        if (p !== undefined) { p.catch(function(){}); }
+      }
       diagPanel.style.display = 'none';
       speak('測定を開始します。', 2);
     }
@@ -499,23 +530,28 @@
         backwardStreak = 0;
         errorBanner.style.display = 'none';
         diagPanel.style.display = 'flex';
+        if (!v.paused) v.pause();
       } else {
         bPause.className = 'orange';
         bPause.innerText = '一時停止 ⏸';
         vbPlay.innerText = '一時停止 ⏸';
-        isManualTracking = true;
         hasPrevProf = false;
         backwardStreak = 0;
         diagPanel.style.display = 'none';
+        if (v.paused && !isReversing) {
+          var p = v.play();
+          if (p !== undefined) { p.catch(function(){}); }
+        }
       }
     }
 
+    // リセット時：トラッキングを停止して完全0m待機へ
     function resetAll() {
       stopReverse();
       totalDist = 0.0;
       totalPxSinceStart = 0.0;
       isInsideYellow = false;
-      isManualTracking = (operationMode === 'MANUAL');
+      isManualTracking = false; // スタート前は計測しない
       hasPrevProf = false;
       announcedMarks = {};
       speedSamples = [];
@@ -533,8 +569,8 @@
         statusBadge.innerText = '待機中 (ヘッド通過待ち)';
       } else {
         statusBadge.className = '';
-        statusBadge.style.background = '#8b5cf6';
-        statusBadge.innerText = '手動測定中';
+        statusBadge.style.background = '#475569';
+        statusBadge.innerText = '手動待機中 (スタート前)';
       }
     }
 
@@ -623,16 +659,15 @@
       v.currentTime = 0;
       v.pause();
       setPauseState(true);
+      resetAll();
       startLoop();
     });
 
     vbPlay.addEventListener('click', function() {
       stopReverse();
       if (v.paused) {
-        v.play();
         setPauseState(false);
       } else {
-        v.pause();
         setPauseState(true);
       }
     });
@@ -670,10 +705,8 @@
     bPause.addEventListener('click', function() {
       if (isPaused) {
         setPauseState(false);
-        if (v.paused && !isReversing) v.play();
       } else {
         setPauseState(true);
-        if (!v.paused) v.pause();
       }
     });
 
@@ -683,7 +716,6 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 環境診断＆エッジ描画関数（メモリ生成ゼロ）
     function runDiagnostics(imgData, avgLum, glareCount, now) {
       if (now - lastDiagTime < 250) return;
       lastDiagTime = now;
@@ -785,7 +817,7 @@
             rawProf[x] = sumG / PH;
           }
 
-          // 2. 黒シースの特徴を浮き立たせる微分エッジ強調
+          // 2. 黒シース微分エッジ強調
           for (var x = 0; x < PW; x++) {
             if (x === 0) {
               curProf[x] = rawProf[1] - rawProf[0];
@@ -799,7 +831,7 @@
           // 3. 環境診断＆エッジ描画を実行
           runDiagnostics(imgData, sumLumTotal / (PW * PH), glareCount, now);
 
-          // 自動モード
+          // 自動モード（白テープ抜けで強制0mリセット＆トラッキング開始）
           if (operationMode === 'AUTO') {
             var isWhitePresent = whiteCountTotal > (PW * PH * 0.25);
             var isYellowPresent = yellowCountTotal > (PW * PH * 0.12);
@@ -808,12 +840,15 @@
               autoState = 'WAIT_HEAD_TRAILING';
               statusBadge.innerText = 'ヘッド通過中...';
             } else if (autoState === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
+              // 白テープ抜けの瞬間：強制0mリセット＆トラッキング開始
               autoState = 'TRACKING_WAIT_YEL1';
               totalDist = 0.0;
               totalPxSinceStart = 0.0;
               statusBadge.className = 'active';
               statusBadge.innerText = '測定中 (1m黄待ち)';
-              speak('測定を開始します。', 2);
+              diagPanel.style.display = 'none';
+              updateDistUI();
+              speak('ヘッド通過、測定を開始します。', 2);
             } else if (autoState === 'TRACKING_WAIT_YEL1') {
               if (isYellowPresent) {
                 isInsideYellow = true;
@@ -841,8 +876,12 @@
             }
           }
 
-          // 相関トラッキング（探索幅maxS=40）
-          if (hasPrevProf) {
+          // 相関トラッキング判定
+          var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
+                         (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
+
+          // スタート前は距離・速度計算を完全バイパス（先行ロープ誤動作防止）
+          if (canTrack && hasPrevProf) {
             var maxS = 40, bestS = 0, minDiff = 99999999;
             for (var s = -maxS; s <= maxS; s++) {
               var diff = 0;
@@ -868,10 +907,7 @@
               errorBanner.style.display = 'none';
             }
 
-            var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
-                           (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
-
-            if (canTrack) {
+            if (Math.abs(shiftPx) > 0.001) {
               var deltaM = (shiftPx / scaleFactor) / 1000.0;
               totalDist += deltaM;
               totalPxSinceStart += shiftPx;
@@ -896,6 +932,9 @@
               updateDistUI();
               lastSpeedTime = now;
             }
+          } else {
+            // スタート前の速度は0固定
+            txtSpeed.innerText = "0.0";
           }
 
           prevProf.set(curProf);
