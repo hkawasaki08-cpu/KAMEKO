@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <!-- iPhoneのセーフエリア（上下バー）に完全フィットさせる設定 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>(仮称)カメラ式ケーブル距離計</title>
   <style>
@@ -29,7 +28,6 @@
     h1 { font-size: 15px; font-weight: 600; color: #4ade80; }
     #fps-display { font-size: 12px; color: #aaa; font-variant-numeric: tabular-nums; }
 
-    /* カメラ映像・ガイド表示エリア */
     #viewport-container {
       position: relative;
       flex: 1;
@@ -47,7 +45,6 @@
     }
     #overlay-canvas { z-index: 10; pointer-events: none; }
 
-    /* 上部ダッシュボード */
     #dashboard {
       position: absolute;
       top: 10px;
@@ -71,23 +68,21 @@
     .metric-value { font-size: 24px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
     .metric-unit { font-size: 12px; color: #888; margin-left: 2px; }
 
-    /* 警告トースト */
-    #alert-toast {
+    #status-msg {
       position: absolute;
-      bottom: 16px;
+      bottom: 12px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(220, 38, 38, 0.85);
-      color: #fff;
-      padding: 4px 12px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid #444;
+      color: #38bdf8;
+      padding: 4px 14px;
       border-radius: 16px;
       font-size: 11px;
-      z-index: 30;
-      display: none;
+      z-index: 25;
       white-space: nowrap;
     }
 
-    /* フッター操作ボタン（iPhoneの下部バー被りを防止） */
     footer {
       background: #1f1f1f;
       padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 12px));
@@ -104,9 +99,9 @@
       background: #2a2a2a;
       color: #fff;
       border: 1px solid #444;
-      padding: 9px 0;
+      padding: 10px 0;
       border-radius: 6px;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       text-align: center;
       cursor: pointer;
@@ -127,7 +122,8 @@
   </header>
 
   <div id="viewport-container">
-    <video id="input-video" playsinline muted loop></video>
+    <!-- iOS Safariでインライン再生させるための必須属性 -->
+    <video id="input-video" playsinline webkit-playsinline muted autoplay loop></video>
     <canvas id="proc-canvas" style="display:none;"></canvas>
     <canvas id="overlay-canvas"></canvas>
 
@@ -142,18 +138,16 @@
       </div>
     </div>
 
-    <div id="alert-toast">⚠️ ハレーション検知</div>
+    <div id="status-msg">下の「カメラ起動」または「動画読込」を押してください</div>
   </div>
 
   <footer>
-    <!-- 上段：微調整・数値補正 -->
     <div class="btn-row">
       <button id="btn-minus" class="num-btn">-0.1m</button>
       <button id="btn-plus" class="num-btn">+0.1m</button>
       <button id="btn-input" class="num-btn">数値入力</button>
       <button id="reset-btn" style="color: #f87171;">0mリセット</button>
     </div>
-    <!-- 下段：メイン操作 -->
     <div class="btn-row">
       <button id="pause-btn" class="pause">一時停止 ⏸</button>
       <button id="cam-btn" class="primary">カメラ起動</button>
@@ -167,13 +161,12 @@
     let totalDistanceMeters = 0.0;
     let isTracking = false;
     let isPaused = false;
-    let lastTimestamp = 0;
+    let lastTimestamp = performance.now();
     let frameCounter = 0;
-    let lastFpsUpdate = 0;
+    let lastFpsUpdate = performance.now();
 
-    // 速度平滑化用バッファ（チラつき防止）
     let speedSamples = [];
-    let lastSpeedUpdate = 0;
+    let lastSpeedUpdate = performance.now();
     let smoothedSpeed = 0.0;
 
     const video = document.getElementById('input-video');
@@ -183,42 +176,64 @@
     const overlayCtx = overlayCanvas.getContext('2d');
     const distEl = document.getElementById('dist-val');
     const speedEl = document.getElementById('speed-val');
-    const alertToast = document.getElementById('alert-toast');
+    const statusMsg = document.getElementById('status-msg');
     const fpsEl = document.getElementById('fps-display');
     const pauseBtn = document.getElementById('pause-btn');
 
     let prevCableProfile = null;
     let prevBgProfile = null;
 
-    // カメラ起動
+    // カメラ起動処理（iOS対応強化）
     document.getElementById('cam-btn').addEventListener('click', async () => {
+      statusMsg.innerText = "カメラをリクエスト中...";
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } },
-          audio: false
-        });
+        // iOS Safari向け制約
+        const constraints = {
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        };
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
-        video.play();
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
+        
+        await video.play();
+        statusMsg.innerText = "カメラ接続完了";
         isPaused = false;
         pauseBtn.className = 'pause';
         pauseBtn.innerText = '一時停止 ⏸';
         startProcessing();
       } catch (err) {
-        alert('カメラ起動エラー: ' + err.message);
+        statusMsg.innerText = "カメラ起動エラー: " + err.name;
+        alert("カメラ起動に失敗しました。\n・Safariの設定でカメラ許可を確認してください\n・HTTPSでアクセスしているか確認してください\n\n詳細: " + err.message);
       }
     });
 
-    // テスト動画読込
-    document.getElementById('video-input').addEventListener('change', (e) => {
+    // テスト動画ファイル読み込み
+    document.getElementById('video-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      video.srcObject = null;
-      video.src = URL.createObjectURL(file);
-      video.play();
-      isPaused = false;
-      pauseBtn.className = 'pause';
-      pauseBtn.innerText = '一時停止 ⏸';
-      startProcessing();
+      statusMsg.innerText = "動画を読み込み中...";
+      try {
+        video.srcObject = null;
+        video.src = URL.createObjectURL(file);
+        video.muted = true;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        await video.play();
+        statusMsg.innerText = "動画再生中";
+        isPaused = false;
+        pauseBtn.className = 'pause';
+        pauseBtn.innerText = '一時停止 ⏸';
+        startProcessing();
+      } catch (err) {
+        statusMsg.innerText = "動画再生エラー: " + err.message;
+      }
     });
 
     // 一時停止 / 再開
@@ -227,16 +242,18 @@
       if (isPaused) {
         pauseBtn.className = 'resume';
         pauseBtn.innerText = '測定再開 ▶';
+        statusMsg.innerText = "測定一時停止中";
         speedEl.innerText = "0.0";
       } else {
         pauseBtn.className = 'pause';
         pauseBtn.innerText = '一時停止 ⏸';
+        statusMsg.innerText = "測定中";
         prevCableProfile = null;
         prevBgProfile = null;
       }
     });
 
-    // 手動加減算 (+0.1 / -0.1m)
+    // 手動加減算
     document.getElementById('btn-plus').addEventListener('click', () => {
       totalDistanceMeters += 0.1;
       updateDistUI();
@@ -278,39 +295,35 @@
       requestAnimationFrame(processLoop);
     }
 
-    // メイン解析ループ
+    // 解析ループ
     function processLoop(timestamp) {
       if (!isTracking) return;
 
-      if (video.readyState >= 2) {
+      if (video.readyState >= 2 && video.videoWidth > 0) {
         const vw = video.videoWidth;
         const vh = video.videoHeight;
 
-        if (overlayCanvas.width !== overlayCanvas.clientWidth) {
+        if (overlayCanvas.width !== overlayCanvas.clientWidth || overlayCanvas.height !== overlayCanvas.clientHeight) {
           overlayCanvas.width = overlayCanvas.clientWidth;
           overlayCanvas.height = overlayCanvas.clientHeight;
         }
 
         const pw = 320;
         const ph = Math.floor(vh * (pw / vw));
-        if (procCanvas.width !== pw) {
+        if (procCanvas.width !== pw || procCanvas.height !== ph) {
           procCanvas.width = pw;
           procCanvas.height = ph;
         }
 
         procCtx.drawImage(video, 0, 0, pw, ph);
 
-        // ケーブル帯（中央）
         const cableY = Math.floor(ph * 0.4);
         const cableH = Math.max(10, Math.floor(ph * 0.2));
         const cableImg = procCtx.getImageData(0, cableY, pw, cableH);
 
-        // 背景帯（上部：手持ち手ブレ相殺用）
         const bgY = Math.floor(ph * 0.08);
-        const bgH = Math.max(8, Math.floor(procH_safe(ph * 0.1)));
+        const bgH = Math.max(8, Math.floor(ph * 0.1));
         const bgImg = procCtx.getImageData(0, bgY, pw, bgH);
-
-        checkHalation(cableImg.data);
 
         const currCableProfile = computeProfile(cableImg.data, pw, cableH, true);
         const currBgProfile = computeProfile(bgImg.data, pw, bgH, false);
@@ -319,11 +332,107 @@
           const shiftCable = computeShift(prevCableProfile, currCableProfile);
           const shiftBg = computeShift(prevBgProfile, currBgProfile);
 
-          // 手ブレ相殺＆暴走カット（背景揺れが急激な場合は無視）
           let effectiveShift = shiftCable;
           if (Math.abs(shiftBg) <= 6) {
             effectiveShift = shiftCable - shiftBg;
           }
 
           const shiftPx = effectiveShift * (vw / pw);
-          
+          const deltaM = (shiftPx / scale_px_per_mm) / 1000.0;
+          const dt = (timestamp - lastTimestamp) / 1000.0;
+
+          if (Math.abs(deltaM) < 0.05 && Math.abs(deltaM) > 0.0005) {
+            totalDistanceMeters += deltaM;
+            updateDistUI();
+
+            if (dt > 0 && dt < 0.2) {
+              const instSpeed = (deltaM / dt) * 60.0;
+              speedSamples.push(Math.max(0, instSpeed));
+            }
+          } else {
+            speedSamples.push(0);
+          }
+
+          if (timestamp - lastSpeedUpdate > 500) {
+            if (speedSamples.length > 0) {
+              const avg = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
+              smoothedSpeed = smoothedSpeed * 0.3 + avg * 0.7;
+              speedSamples = [];
+            } else {
+              smoothedSpeed = 0.0;
+            }
+            speedEl.innerText = Math.max(0, smoothedSpeed).toFixed(1);
+            lastSpeedUpdate = timestamp;
+          }
+        }
+
+        prevCableProfile = currCableProfile;
+        prevBgProfile = currBgProfile;
+
+        drawOverlay(overlayCanvas.width, overlayCanvas.height);
+
+        frameCounter++;
+        if (timestamp - lastFpsUpdate > 1000) {
+          fpsEl.innerText = `${frameCounter} FPS`;
+          frameCounter = 0;
+          lastFpsUpdate = timestamp;
+        }
+      }
+
+      lastTimestamp = timestamp;
+      requestAnimationFrame(processLoop);
+    }
+
+    function computeProfile(data, w, h, filterSpecular) {
+      const prof = new Float32Array(w);
+      for (let x = 0; x < w; x++) {
+        let sum = 0, count = 0;
+        for (let y = 0; y < h; y++) {
+          const idx = (y * w + x) * 4;
+          const gray = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
+          if (!filterSpecular || gray < 235) {
+            sum += gray;
+            count++;
+          }
+        }
+        prof[x] = count > 0 ? sum / count : 0;
+      }
+      return prof;
+    }
+
+    function computeShift(prev, curr) {
+      const maxSearch = 12;
+      let bestShift = 0;
+      let minDiff = Infinity;
+      for (let s = -maxSearch; s <= maxSearch; s++) {
+        let diff = 0, count = 0;
+        for (let i = maxSearch; i < prev.length - maxSearch; i++) {
+          diff += Math.abs(prev[i] - curr[i + s]);
+          count++;
+        }
+        if (count > 0 && diff < minDiff) {
+          minDiff = diff;
+          bestShift = s;
+        }
+      }
+      return bestShift;
+    }
+
+    function drawOverlay(w, h) {
+      const ctx = overlayCtx;
+      ctx.clearRect(0, 0, w, h);
+
+      const roiTop = h * 0.4;
+      const roiHeight = h * 0.2;
+      ctx.strokeStyle = isPaused ? '#94a3b8' : '#22c55e';
+      ctx.lineWidth = 2;
+      ctx.setLineDash(isPaused ? [4, 4] : []);
+      ctx.strokeRect(w * 0.1, roiTop, w * 0.8, roiHeight);
+
+      ctx.fillStyle = isPaused ? '#94a3b8' : '#22c55e';
+      ctx.font = '11px sans-serif';
+      ctx.fillText(isPaused ? '一時停止中' : 'ケーブル測定領域', w * 0.1, roiTop - 6);
+    }
+  </script>
+</body>
+</html>
