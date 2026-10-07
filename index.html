@@ -1,4 +1,4 @@
-<!DOCTYPE html><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -73,7 +73,6 @@
     .card-val { font-size: 24px; font-weight: bold; }
     .card-unit { font-size: 11px; color: #888; margin-left: 2px; }
 
-    /* テスト用動画操作バー */
     #v-bar {
       position: absolute;
       bottom: 10px;
@@ -100,7 +99,6 @@
       text-align: center;
     }
 
-    /* エラー・状態表示 */
     #msg {
       position: absolute;
       top: 75px;
@@ -168,7 +166,6 @@
 
     <div id="msg">下の「カメラ起動」または「動画読込」を押してください</div>
 
-    <!-- 動画操作バー（動画読込時のみ表示） -->
     <div id="v-bar">
       <div style="display:flex; justify-content:space-between; font-size:10px; color:#38bdf8;">
         <span>🎬 動画コントローラー</span>
@@ -200,8 +197,7 @@
   </footer>
 
   <script>
-    // 状態管理
-    var scaleFactor = 2.5; // px/mm
+    var scaleFactor = 2.5;
     var totalDist = 0.0;
     var isRunning = false;
     var isPaused = false;
@@ -333,13 +329,11 @@
         overlay.height = sh;
       }
 
-      // 画面中央の測定枠
       var bw = Math.floor(sw * 0.85);
       var bh = 60;
       var bx = Math.floor((sw - bw) / 2);
       var by = Math.floor(sh * 0.55 - bh / 2);
 
-      // ガイド枠描画
       ctxOverlay.clearRect(0, 0, sw, sh);
       ctxOverlay.strokeStyle = isPaused ? '#94a3b8' : '#22c55e';
       ctxOverlay.lineWidth = 2;
@@ -348,7 +342,6 @@
       ctxOverlay.font = '11px sans-serif';
       ctxOverlay.fillText(isPaused ? '⏸ 測定停止中' : '🎯 ケーブル測定枠', bx, by - 6);
 
-      // 解析処理
       if (v.readyState >= 2 && v.videoWidth > 0) {
         var pw = 160;
         var ph = 20;
@@ -370,7 +363,6 @@
         ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, pw, ph);
         var imgData = ctxProc.getImageData(0, 0, pw, ph).data;
 
-        // 1次元輝度プロファイル抽出
         var curProf = new Float32Array(pw);
         for (var x = 0; x < pw; x++) {
           var sum = 0, cnt = 0;
@@ -383,7 +375,6 @@
         }
 
         if (!isPaused && prevProfile) {
-          // シフト量探索
           var maxS = 10, bestS = 0, minDiff = 999999;
           for (var s = -maxS; s <= maxS; s++) {
             var diff = 0;
@@ -408,7 +399,6 @@
             speedSamples.push(0);
           }
 
-          // 速度平滑化 (0.5秒平均)
           if (now - lastSpeedTime > 500) {
             if (speedSamples.length > 0) {
               var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
@@ -423,7 +413,6 @@
         }
         prevProfile = curProf;
 
-        // FPSカウント
         frameCount++;
         if (now - lastFpsTime > 1000) {
           txtFps.innerText = frameCount + " FPS";
@@ -438,456 +427,3 @@
   </script>
 </body>
 </html>
-
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>(仮称)カメラ式ケーブル距離計</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      background: #000;
-      color: #f0f0f0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    header {
-      background: rgba(20, 20, 20, 0.95);
-      padding: 8px 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #333;
-      flex-shrink: 0;
-      z-index: 30;
-    }
-    h1 { font-size: 14px; font-weight: 600; color: #4ade80; }
-    #fps-display { font-size: 12px; color: #aaa; font-variant-numeric: tabular-nums; }
-
-    #viewport-container {
-      position: relative;
-      flex: 1;
-      width: 100%;
-      background: #000;
-      overflow: hidden;
-      touch-action: none;
-    }
-    video {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    #overlay-canvas {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    #dashboard {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      right: 10px;
-      z-index: 20;
-      display: flex;
-      gap: 8px;
-    }
-    .metric-card {
-      flex: 1;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(8px);
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      text-align: center;
-    }
-    .metric-label { font-size: 10px; color: #aaa; text-transform: uppercase; margin-bottom: 2px; }
-    .metric-value { font-size: 26px; font-weight: bold; color: #fff; font-variant-numeric: tabular-nums; }
-    .metric-unit { font-size: 12px; color: #888; margin-left: 2px; }
-
-    /* テスト用動画コントローラー（仮設） */
-    #video-test-controls {
-      position: absolute;
-      bottom: 40px;
-      left: 10px;
-      right: 10px;
-      background: rgba(15, 23, 42, 0.88);
-      border: 1px solid #38bdf8;
-      backdrop-filter: blur(6px);
-      border-radius: 10px;
-      padding: 8px 10px;
-      z-index: 26;
-      display: none;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .v-ctrl-header {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: #38bdf8;
-      font-weight: bold;
-    }
-    .v-slider {
-      width: 100%;
-      height: 4px;
-      accent-color: #38bdf8;
-    }
-    .v-btn-row {
-      display: flex;
-      gap: 4px;
-    }
-    .v-btn {
-      flex: 1;
-      background: #1e293b;
-      color: #fff;
-      border: 1px solid #475569;
-      border-radius: 4px;
-      padding: 6px 0;
-      font-size: 11px;
-      text-align: center;
-      cursor: pointer;
-    }
-    .v-btn:active { background: #334155; }
-
-    #status-msg {
-      position: absolute;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.85);
-      border: 1px solid #444;
-      color: #38bdf8;
-      padding: 4px 14px;
-      border-radius: 16px;
-      font-size: 11px;
-      z-index: 25;
-      white-space: nowrap;
-    }
-
-    footer {
-      background: rgba(20, 20, 20, 0.95);
-      padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 12px));
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      border-top: 1px solid #333;
-      flex-shrink: 0;
-      z-index: 30;
-    }
-    .btn-row { display: flex; gap: 6px; }
-    button, label.btn {
-      flex: 1;
-      background: #2a2a2a;
-      color: #fff;
-      border: 1px solid #444;
-      padding: 10px 0;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      text-align: center;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    button.primary { background: #16a34a; border-color: #15803d; }
-    button.pause { background: #d97706; border-color: #b45309; }
-    button.resume { background: #2563eb; border-color: #1d4ed8; }
-    button.num-btn { background: #374151; font-weight: bold; }
-    input[type="file"] { display: none; }
-
-    /* モーダルテンキー */
-    #num-modal {
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.75);
-      backdrop-filter: blur(4px);
-      z-index: 50;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-box {
-      background: #1e293b;
-      border: 1px solid #475569;
-      border-radius: 12px;
-      padding: 16px;
-      width: 260px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-    #numpad-display {
-      background: #0f172a;
-      border: 1px solid #334155;
-      color: #fff;
-      font-size: 24px;
-      padding: 8px 12px;
-      border-radius: 6px;
-      text-align: right;
-      font-family: monospace;
-    }
-    .numpad-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
-    }
-    .numpad-btn {
-      background: #334155;
-      color: #fff;
-      border: none;
-      padding: 12px 0;
-      font-size: 16px;
-      font-weight: bold;
-      border-radius: 6px;
-    }
-    .numpad-btn:active { background: #475569; }
-  </style>
-</head>
-<body>
-
-  <header>
-    <h1>(仮称)カメラ式ケーブル距離計</h1>
-    <span id="fps-display">0.0 FPS</span>
-  </header>
-
-  <div id="viewport-container">
-    <video id="input-video" playsinline webkit-playsinline muted autoplay loop></video>
-    <canvas id="proc-canvas" style="display:none;"></canvas>
-    <canvas id="overlay-canvas"></canvas>
-
-    <div id="dashboard">
-      <div class="metric-card" id="card-dist">
-        <div class="metric-label">延線距離</div>
-        <div><span id="dist-val" class="metric-value">0.00</span><span class="metric-unit">m</span></div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">延線速度 (平均)</div>
-        <div><span id="speed-val" class="metric-value">0.0</span><span class="metric-unit">m/分</span></div>
-      </div>
-    </div>
-
-    <!-- テスト用動画操作コントローラー（仮設） -->
-    <div id="video-test-controls">
-      <div class="v-ctrl-header">
-        <span>🎬 テスト動画コントローラー</span>
-        <span id="video-time-txt">0.0s / 0.0s</span>
-      </div>
-      <input type="range" id="video-seekbar" class="v-slider" min="0" max="100" value="0" step="0.1">
-      <div class="v-btn-row">
-        <button class="v-btn" id="vb-back1s">◀◀ -1s</button>
-        <button class="v-btn" id="vb-step-back">◀ コマ戻</button>
-        <button class="v-btn" id="vb-play-toggle" style="background:#0284c7;">一時停止 ⏸</button>
-        <button class="v-btn" id="vb-step-fwd">コマ送 ▶</button>
-        <button class="v-btn" id="vb-fwd1s">+1s ▶▶</button>
-      </div>
-    </div>
-
-    <div id="status-msg">緑枠を上下にドラッグしてケーブルに合わせてください</div>
-  </div>
-
-  <footer>
-    <div class="btn-row">
-      <button id="btn-minus" class="num-btn">-0.1m</button>
-      <button id="btn-plus" class="num-btn">+0.1m</button>
-      <button id="btn-input" class="num-btn">数値入力</button>
-      <button id="reset-btn" style="color: #f87171; background: #2f1c1c;">0mリセット</button>
-    </div>
-    <div class="btn-row">
-      <button id="pause-btn" class="pause">一時停止 ⏸</button>
-      <button id="cam-btn" class="primary">カメラ起動</button>
-      <label class="btn" for="video-input">動画読込</label>
-      <input type="file" id="video-input" accept="video/*">
-    </div>
-  </footer>
-
-  <!-- テンキーモーダル -->
-  <div id="num-modal">
-    <div class="modal-box">
-      <div style="font-size:12px; color:#94a3b8;">距離入力 (m)</div>
-      <div id="numpad-display">0.00</div>
-      <div class="numpad-grid">
-        <button class="numpad-btn" onclick="numKey('7')">7</button>
-        <button class="numpad-btn" onclick="numKey('8')">8</button>
-        <button class="numpad-btn" onclick="numKey('9')">9</button>
-        <button class="numpad-btn" onclick="numKey('4')">4</button>
-        <button class="numpad-btn" onclick="numKey('5')">5</button>
-        <button class="numpad-btn" onclick="numKey('6')">6</button>
-        <button class="numpad-btn" onclick="numKey('1')">1</button>
-        <button class="numpad-btn" onclick="numKey('2')">2</button>
-        <button class="numpad-btn" onclick="numKey('3')">3</button>
-        <button class="numpad-btn" onclick="numKey('C')" style="color:#f87171;">C</button>
-        <button class="numpad-btn" onclick="numKey('0')">0</button>
-        <button class="numpad-btn" onclick="numKey('.')">.</button>
-      </div>
-      <div style="display:flex; gap:6px; margin-top:4px;">
-        <button class="numpad-btn" onclick="closeNumModal(false)" style="flex:1; background:#475569;">取消</button>
-        <button class="numpad-btn" onclick="closeNumModal(true)" style="flex:1; background:#16a34a;">確定</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let scale_px_per_mm = 2.5;
-    let totalDistanceMeters = 0.0;
-    let isTracking = false;
-    let isPaused = false;
-    let lastTimestamp = performance.now();
-    let frameCounter = 0;
-    let lastFpsUpdate = performance.now();
-
-    let speedSamples = [];
-    let lastSpeedUpdate = performance.now();
-    let smoothedSpeed = 0.0;
-
-    let boxYRatio = 0.55;
-
-    const video = document.getElementById('input-video');
-    const procCanvas = document.getElementById('proc-canvas');
-    const procCtx = procCanvas.getContext('2d', { willReadFrequently: true });
-    const overlayCanvas = document.getElementById('overlay-canvas');
-    const overlayCtx = overlayCanvas.getContext('2d');
-    const distEl = document.getElementById('dist-val');
-    const speedEl = document.getElementById('speed-val');
-    const statusMsg = document.getElementById('status-msg');
-    const fpsEl = document.getElementById('fps-display');
-    const pauseBtn = document.getElementById('pause-btn');
-
-    // 動画コントローラー要素
-    const vCtrlPanel = document.getElementById('video-test-controls');
-    const vTimeTxt = document.getElementById('video-time-txt');
-    const vSeekbar = document.getElementById('video-seekbar');
-    const vbPlayToggle = document.getElementById('vb-play-toggle');
-
-    let prevProfile = null;
-    let isBusyProcessing = false;
-
-    // カメラ起動
-    document.getElementById('cam-btn').addEventListener('click', async () => {
-      vCtrlPanel.style.display = 'none'; // カメラ時はコントローラーを非表示
-      statusMsg.innerText = "カメラ起動中...";
-      try {
-        if (video.srcObject) {
-          video.srcObject.getTracks().forEach(t => t.stop());
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          }
-        });
-        video.srcObject = stream;
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
-        await video.play();
-        statusMsg.innerText = "測定中（枠をドラッグして位置調整可）";
-        isPaused = false;
-        pauseBtn.className = 'pause';
-        pauseBtn.innerText = '一時停止 ⏸';
-        startProcessing();
-      } catch (err) {
-        alert("カメラ起動失敗: " + err.message);
-      }
-    });
-
-    // 動画読込（テストコントローラーを表示）
-    document.getElementById('video-input').addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      if (video.srcObject) {
-        video.srcObject.getTracks().forEach(t => t.stop());
-        video.srcObject = null;
-      }
-      video.src = URL.createObjectURL(file);
-      vCtrlPanel.style.display = 'flex'; // コントローラー表示
-      await video.play();
-      vbPlayToggle.innerText = '一時停止 ⏸';
-      isPaused = false;
-      pauseBtn.className = 'pause';
-      pauseBtn.innerText = '一時停止 ⏸';
-      startProcessing();
-    });
-
-    // --- 動画テスト用コントローラー操作 ---
-    vbPlayToggle.addEventListener('click', () => {
-      if (video.paused) {
-        video.play();
-        vbPlayToggle.innerText = '一時停止 ⏸';
-      } else {
-        video.pause();
-        vbPlayToggle.innerText = '再生 ▶';
-      }
-    });
-
-    document.getElementById('vb-back1s').addEventListener('click', () => {
-      video.currentTime = Math.max(0, video.currentTime - 1.0);
-    });
-    document.getElementById('vb-fwd1s').addEventListener('click', () => {
-      video.currentTime = Math.min(video.duration || 100, video.currentTime + 1.0);
-    });
-
-    // コマ送り / コマ戻し (約1フレーム: 1/30s ≒ 0.033s)
-    document.getElementById('vb-step-fwd').addEventListener('click', () => {
-      video.pause();
-      vbPlayToggle.innerText = '再生 ▶';
-      video.currentTime = Math.min(video.duration || 100, video.currentTime + 0.033);
-    });
-    document.getElementById('vb-step-back').addEventListener('click', () => {
-      video.pause();
-      vbPlayToggle.innerText = '再生 ▶';
-      video.currentTime = Math.max(0, video.currentTime - 0.033);
-    });
-
-    // シークバー連動
-    video.addEventListener('timeupdate', () => {
-      if (video.duration) {
-        vSeekbar.value = (video.currentTime / video.duration) * 100;
-        vTimeTxt.innerText = `${video.currentTime.toFixed(1)}s / ${video.duration.toFixed(1)}s`;
-      }
-    });
-    vSeekbar.addEventListener('input', () => {
-      if (video.duration) {
-        video.currentTime = (vSeekbar.value / 100) * video.duration;
-      }
-    });
-
-    // 一時停止 / 再開
-    pauseBtn.addEventListener('click', () => {
-      isPaused = !isPaused;
-      if (isPaused) {
-        pauseBtn.className = 'resume';
-        pauseBtn.innerText = '測定再開 ▶';
-        statusMsg.innerText = "測定一時停止中";
-        speedEl.innerText = "0.0";
-      } else {
-        pauseBtn.className = 'pause';
-        pauseBtn.innerText = '一時停止 ⏸';
-        statusMsg.innerText = "測定中";
-        prevProfile = null;
-      }
-    });
-
-    // 手動加減算
-    document.getElementById('btn-plus').addEventListener('click', () => {
-      totalDistanceMeters += 0.1;
-      updateDistUI();
-    });
-    document.getElementById('btn-minus').addEventListener('click', () => {
-      totalDistanceMeters = Math.max(0, totalDistanceMeters - 0.1);
-      updateDistUI();
-    });
-
-    // 0mリセット
-    document.getElementById('reset-btn').addEventListener('click', () => {
-      totalDistanceMeters = 0
