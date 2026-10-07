@@ -7,126 +7,76 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100%;
-      height: 100%;
-      background: #000;
-      color: #fff;
+      width: 100%; height: 100%;
+      background: #000; color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      overflow: hidden; display: flex; flex-direction: column;
     }
     header {
-      background: #18181b;
-      padding: 6px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #333;
+      background: #18181b; padding: 8px 12px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #333; flex-shrink: 0;
     }
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
     #fps { font-size: 11px; color: #aaa; }
 
     #stage {
-      position: relative;
-      flex: 1;
-      width: 100%;
-      background: #111;
-      overflow: hidden;
-      touch-action: none; /* ドラッグ操作を可能に */
+      position: relative; flex: 1; width: 100%;
+      background: #111; overflow: hidden;
     }
     video {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       object-fit: cover;
-      pointer-events: none;
     }
 
-    /* 移動式ケーブル測定枠 */
+    /* ケーブル通過帯（40%位置）にドンピシャ配置 */
     #target-box {
       position: absolute;
-      top: 40%;
-      left: 4%;
-      width: 92%;
-      height: 90px;
-      border: 2px solid #22c55e;
-      border-radius: 4px;
+      top: 40%; left: 4%; width: 92%; height: 100px;
+      border: 2px solid #22c55e; border-radius: 4px;
       box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
-      z-index: 15;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding: 4px 6px;
-      background: rgba(34, 197, 94, 0.05);
-      cursor: grab;
+      z-index: 10; pointer-events: none;
+      display: flex; padding: 4px;
     }
-    #target-box:active { cursor: grabbing; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.6); }
     .box-tag {
-      font-size: 10px;
-      color: #22c55e;
-      background: rgba(0,0,0,0.7);
-      padding: 2px 6px;
-      border-radius: 3px;
-      pointer-events: none;
-    }
-    .box-controls {
-      display: flex;
-      gap: 4px;
-      pointer-events: auto;
-    }
-    .box-btn {
-      background: rgba(0,0,0,0.75);
-      border: 1px solid #22c55e;
-      color: #fff;
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      cursor: pointer;
+      font-size: 10px; color: #22c55e;
+      background: rgba(0,0,0,0.6); padding: 2px 4px; border-radius: 2px;
     }
 
     /* ダッシュボード */
     #dash {
-      position: absolute;
-      top: 6px; left: 6px; right: 6px;
-      z-index: 20;
-      display: flex;
-      gap: 6px;
+      position: absolute; top: 6px; left: 6px; right: 6px;
+      z-index: 20; display: flex; gap: 6px;
     }
     .card {
-      flex: 1;
-      background: rgba(0, 0, 0, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
-      padding: 6px 2px;
-      text-align: center;
+      flex: 1; background: rgba(0, 0, 0, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px;
+      padding: 6px 2px; text-align: center;
     }
     .card-lbl { font-size: 9px; color: #aaa; }
     .card-val { font-size: 20px; font-weight: bold; }
     .card-unit { font-size: 10px; color: #888; }
 
-    /* モード切替 & 自動追従切替 */
+    /* モード切替 */
     #scale-selector {
-      position: absolute;
-      top: 66px; left: 6px; right: 6px;
-      display: flex;
-      gap: 6px;
-      z-index: 20;
+      position: absolute; top: 66px; left: 6px; right: 6px;
+      display: flex; gap: 6px; z-index: 20;
     }
     .tab-btn {
-      flex: 1;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid #475569;
-      color: #94a3b8;
-      padding: 6px 0;
-      border-radius: 6px;
-      font-size: 11px;
-      cursor: pointer;
-      text-align: center;
+      flex: 1; background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #475569; color: #94a3b8;
+      padding: 6px 0; border-radius: 6px; font-size: 11px;
+      cursor: pointer; text-align: center;
     }
-    .tab-btn.active {
-      background: #0284c7;
-      border-color: #38bdf8;
-      color: #fff;
-      font
+    .tab-btn.active { background: #0284c7; border-color: #38bdf8; color: #fff; font-weight: bold; }
+
+    /* 動画コントローラー */
+    #v-bar {
+      position: absolute; bottom: 6px; left: 6px; right: 6px;
+      background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
+      border-radius: 6px; padding: 6px; z-index: 25;
+      display: none; flex-direction: column; gap: 4px;
+    }
+    .v-row { display: flex; gap: 4px; align-items: center; }
+    .v-btn {
+      flex
