@@ -13,7 +13,7 @@
       overflow: hidden; display: flex; flex-direction: column;
     }
     header {
-      background: #18181b; padding: 8px 12px;
+      background: #18181b; padding: 6px 12px;
       display: flex; justify-content: space-between; align-items: center;
       border-bottom: 1px solid #333; flex-shrink: 0; z-index: 30;
     }
@@ -23,6 +23,7 @@
       background: #334155; color: #94a3b8; font-weight: bold;
     }
     #status-badge.active { background: #16a34a; color: #fff; }
+    #status-badge.manual { background: #8b5cf6; color: #fff; }
     #status-badge.cal1 { background: #d97706; color: #fff; }
     #status-badge.cal2 { background: #0284c7; color: #fff; }
 
@@ -35,7 +36,7 @@
       object-fit: cover;
     }
 
-    /* ケーブル測定枠（画面上寄り40%位置に固定配置） */
+    /* 測定枠 */
     #target-box {
       position: absolute;
       top: 40%; left: 4%; width: 92%; height: 100px;
@@ -49,16 +50,16 @@
       background: rgba(0,0,0,0.65); padding: 2px 5px; border-radius: 2px;
     }
 
-    /* エラー警告バナー（中央にポップアップ） */
+    /* エラー警告バナー */
     #error-banner {
-      position: absolute; top: 125px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 135px; left: 50%; transform: translateX(-50%);
       background: rgba(220, 38, 38, 0.95); border: 1px solid #f87171;
       color: #fff; padding: 6px 16px; border-radius: 20px;
       font-size: 12px; font-weight: bold; z-index: 35;
       display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     }
 
-    /* ダッシュボード（距離・残り・速度） */
+    /* ダッシュボード */
     #dash {
       position: absolute; top: 6px; left: 6px; right: 6px;
       z-index: 20; display: flex; gap: 6px;
@@ -66,21 +67,39 @@
     .card {
       flex: 1; background: rgba(0, 0, 0, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px;
-      padding: 6px 2px; text-align: center;
+      padding: 5px 2px; text-align: center;
     }
     .card-lbl { font-size: 9px; color: #aaa; }
     .card-val { font-size: 20px; font-weight: bold; font-variant-numeric: tabular-nums; }
     .card-unit { font-size: 10px; color: #888; }
 
-    /* 校正ステータスインフォバー */
-    #info-bar {
+    /* モード選択タブ（自動テープ検知 / 手動測定） */
+    #mode-bar {
       position: absolute; top: 66px; left: 6px; right: 6px;
-      background: rgba(15, 23, 42, 0.9); border: 1px solid #475569;
-      padding: 5px 8px; border-radius: 6px; font-size: 10px;
-      display: flex; justify-content: space-between; align-items: center; z-index: 20;
+      display: flex; gap: 6px; z-index: 20;
     }
+    .mode-tab {
+      flex: 1; background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #475569; color: #94a3b8;
+      padding: 5px 0; border-radius: 6px; font-size: 11px;
+      cursor: pointer; text-align: center;
+    }
+    .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; font-weight: bold; }
 
-    /* 動画コントローラー（テスト用・速度可変機能付き） */
+    /* 手動スケール選択（手動時のみ表示） */
+    #manual-scale-bar {
+      position: absolute; top: 98px; left: 6px; right: 6px;
+      display: none; gap: 6px; z-index: 20;
+    }
+    .scale-tab {
+      flex: 1; background: rgba(30, 41, 59, 0.9);
+      border: 1px solid #475569; color: #94a3b8;
+      padding: 4px 0; border-radius: 5px; font-size: 10px;
+      cursor: pointer; text-align: center;
+    }
+    .scale-tab.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; font-weight: bold; }
+
+    /* 動画コントローラー */
     #v-bar {
       position: absolute; bottom: 6px; left: 6px; right: 6px;
       background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
@@ -100,22 +119,23 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
-    /* 操作ボタンエリア（Safariアドレスバー完全回避） */
+    /* 操作ボタン */
     footer {
       background: #18181b;
-      padding: 8px 8px calc(34px + env(safe-area-inset-bottom, 26px));
-      display: flex; flex-direction: column; gap: 6px;
+      padding: 6px 8px calc(32px + env(safe-area-inset-bottom, 24px));
+      display: flex; flex-direction: column; gap: 5px;
       border-top: 1px solid #333; flex-shrink: 0; z-index: 40;
     }
-    .btn-row { display: flex; gap: 6px; }
+    .btn-row { display: flex; gap: 5px; }
     button, label.btn {
       flex: 1; background: #27272a; color: #fff;
-      border: 1px solid #3f3f46; padding: 11px 0; border-radius: 6px;
-      font-size: 12px; font-weight: 500; text-align: center;
+      border: 1px solid #3f3f46; padding: 10px 0; border-radius: 6px;
+      font-size: 11px; font-weight: 500; text-align: center;
       cursor: pointer; touch-action: manipulation;
     }
     button.green { background: #16a34a; border-color: #15803d; font-weight: bold; }
     button.orange { background: #d97706; border-color: #b45309; }
+    button.purple { background: #7c3aed; border-color: #6d28d9; font-weight: bold; }
     button.mic-on { background: #b91c1c; border-color: #991b1b; }
     input[type="file"] { display: none; }
   </style>
@@ -133,8 +153,8 @@
 
     <!-- ケーブル測定枠 -->
     <div id="target-box">
-      <span class="box-tag">🎯 ケーブル測定枠</span>
-      <span class="box-tag" style="color:#facc15;">ヘッド後端:開始 / 黄2点:校正</span>
+      <span class="box-tag">🎯 測定枠</span>
+      <span id="box-subtag" class="box-tag" style="color:#facc15;">ヘッド後端:開始 / 黄2点:校正</span>
     </div>
 
     <!-- エラー・警告バナー -->
@@ -156,13 +176,19 @@
       </div>
     </div>
 
-    <!-- 校正ステータスインフォ -->
-    <div id="info-bar">
-      <span id="calib-txt">校正: 未校正 (暫定 1.40 px/mm)</span>
-      <span id="fps">0 FPS</span>
+    <!-- 測定モード選択タブ -->
+    <div id="mode-bar">
+      <button class="mode-tab active" id="tab-auto">🎯 自動テープ検知モード</button>
+      <button class="mode-tab" id="tab-manual">✋ 手動運用モード (テープ無)</button>
     </div>
 
-    <!-- 動画操作バー（再生速度可変コントローラー付き） -->
+    <!-- 手動モード用 画角スケール選択 -->
+    <div id="manual-scale-bar">
+      <button class="scale-tab" id="m-scale-close">近接 (約40cm / 2.5 px/mm)</button>
+      <button class="scale-tab active" id="m-scale-wide">引き (約80cm〜1m / 1.4 px/mm)</button>
+    </div>
+
+    <!-- 動画操作バー -->
     <div id="v-bar">
       <div class="v-row">
         <span style="font-size: 10px; color: #38bdf8; min-width: 48px; font-weight: bold;">速度:</span>
@@ -188,7 +214,8 @@
 
   <footer>
     <div class="btn-row">
-      <button id="b-mic" style="background:#2563eb;">🎤 音声認識 ON</button>
+      <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
+      <button id="b-mic" style="background:#2563eb;">🎤 音声操作 ON</button>
       <button id="b-set-target">目標mセット</button>
       <button id="b-m01">-0.1m</button>
       <button id="b-p01">+0.1m</button>
@@ -203,20 +230,18 @@
   </footer>
 
   <script>
-    var scaleFactor = 1.4; // 暫定初期スケール（引き画角標準）
+    // --- 測定＆モードパラメータ ---
+    var operationMode = 'AUTO'; // 'AUTO' (テープ自動検知) または 'MANUAL' (手動運用)
+    var scaleFactor = 1.4; // 暫定初期値（手動・引き画角用）
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
     var isPaused = false;
+    var isManualTracking = false; // 手動モード時の計測稼働フラグ
     var currentPlaybackRate = 1.0;
 
-    // --- 状態遷移ステートマシン ---
-    // WAIT_HEAD_INSIDE (白ヘッド進入待ち)
-    // ➔ WAIT_HEAD_TRAILING (白ヘッド後端抜けで 0.00m 自動トリガー)
-    // ➔ TRACKING_WAIT_YEL1 (黄テープ①後端抜けで 1m 暫定校正)
-    // ➔ TRACKING_WAIT_YEL2 (黄テープ②後端抜けで 2m 本校正完了)
-    // ➔ TRACKING_FINAL (通常測定モード)
-    var state = 'WAIT_HEAD_INSIDE';
+    // 自動モード時のステート
+    var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
 
@@ -225,8 +250,6 @@
     var lastSpeedTime = performance.now();
     var currentSpeed = 0.0;
     var lastLoopTime = performance.now();
-    var frameCount = 0;
-    var lastFpsTime = performance.now();
     var prevProfile = null;
     var lastErrorTime = 0;
 
@@ -238,15 +261,76 @@
     var txtRemain = document.getElementById('txt-remain');
     var txtTargetVal = document.getElementById('txt-target-val');
     var txtSpeed = document.getElementById('txt-speed');
-    var txtFps = document.getElementById('fps');
     var vBar = document.getElementById('v-bar');
     var vTime = document.getElementById('v-time');
     var bPause = document.getElementById('b-pause');
     var statusBadge = document.getElementById('status-badge');
-    var calibTxt = document.getElementById('calib-txt');
+    var boxSubtag = document.getElementById('box-subtag');
     var errorBanner = document.getElementById('error-banner');
+    var bManualStart = document.getElementById('b-manual-start');
+    var manualScaleBar = document.getElementById('manual-scale-bar');
 
-    // === 音声案内（指定回数復唱対応） ===
+    // === モード切替タブ処理 ===
+    var tabAuto = document.getElementById('tab-auto');
+    var tabManual = document.getElementById('tab-manual');
+
+    tabAuto.addEventListener('click', function() {
+      operationMode = 'AUTO';
+      tabAuto.className = 'mode-tab active';
+      tabManual.className = 'mode-tab';
+      manualScaleBar.style.display = 'none';
+      bManualStart.style.display = 'none';
+      boxSubtag.innerText = 'ヘッド後端:開始 / 黄2点:校正';
+      resetAll();
+    });
+
+    tabManual.addEventListener('click', function() {
+      operationMode = 'MANUAL';
+      tabManual.className = 'mode-tab active';
+      tabAuto.className = 'mode-tab';
+      manualScaleBar.style.display = 'flex';
+      bManualStart.style.display = 'inline-block';
+      boxSubtag.innerText = '手動モード (テープ不要)';
+      statusBadge.className = 'manual';
+      statusBadge.innerText = '手動モード待機中';
+      resetAll();
+      speak('手動運用モードに切り替えました', 1);
+    });
+
+    // 手動モード時の画角スケール切替
+    var mScaleClose = document.getElementById('m-scale-close');
+    var mScaleWide = document.getElementById('m-scale-wide');
+    mScaleClose.addEventListener('click', function() {
+      scaleFactor = 2.5;
+      mScaleClose.className = 'scale-tab active';
+      mScaleWide.className = 'scale-tab';
+    });
+    mScaleWide.addEventListener('click', function() {
+      scaleFactor = 1.4;
+      mScaleWide.className = 'scale-tab active';
+      mScaleClose.className = 'scale-tab';
+    });
+
+    // 手動スタート処理
+    bManualStart.addEventListener('click', function() {
+      startManualMeasurement();
+    });
+
+    function startManualMeasurement() {
+      totalDist = 0.0;
+      isManualTracking = true;
+      isPaused = false;
+      bPause.className = 'orange';
+      bPause.innerText = '一時停止 ⏸';
+      statusBadge.className = 'active';
+      statusBadge.innerText = '手動測定中 (0.00m〜)';
+      prevProfile = null;
+      announcedMarks = {};
+      updateDistUI();
+      speak('測定を開始します。測定を開始します。', 2);
+    }
+
+    // === 音声案内 ===
     function speak(text, repeatCount) {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
@@ -259,7 +343,6 @@
       }
     }
 
-    // === フェイルセーフ（エラー・警告表示＋音声） ===
     function triggerError(msg, audioMsg) {
       var now = performance.now();
       if (now - lastErrorTime > 3000) {
@@ -271,11 +354,9 @@
       }
     }
 
-    // === 距離音声案内ロジック ===
+    // 距離音声案内
     function checkDistanceAnnouncements(currentD) {
       var diff = targetDist - currentD;
-
-      // 1. 5m刻みの経過案内（残り10m手前まで）
       if (diff > 10.5) {
         var step5 = Math.floor(currentD / 5.0) * 5;
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
@@ -284,8 +365,6 @@
           return;
         }
       }
-
-      // 2. ラストスパート（残り10mから1m刻みカウントダウン）
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
           announcedMarks['rem_' + m] = true;
@@ -293,15 +372,11 @@
           return;
         }
       }
-
-      // 3. 目標到達
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
         announcedMarks['zero'] = true;
         speak('ゼロ、到達しました', 1);
         return;
       }
-
-      // 4. 超過加算案内 (+1m, +2m, +3m...)
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
         if (overM >= 1 && overM <= 15 && !announcedMarks['over_' + overM]) {
@@ -311,7 +386,7 @@
       }
     }
 
-    // === 音声認識（コマンド操作） ===
+    // 音声認識
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var recognition = null;
     var isMicListening = false;
@@ -324,8 +399,12 @@
         var last = event.results.length - 1;
         var cmd = event.results[last][0].transcript.trim().replace(/\s+/g, '');
         if (cmd.includes('スタート') || cmd.includes('開始')) {
-          isPaused = false; bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸'; prevProfile = null;
-          speak('スタートしました', 1);
+          if (operationMode === 'MANUAL') {
+            startManualMeasurement();
+          } else {
+            isPaused = false; bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸'; prevProfile = null;
+            speak('スタートしました', 1);
+          }
         } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
           isPaused = true; bPause.className = 'green'; bPause.innerText = '測定再開 ▶'; txtSpeed.innerText = "0.0";
           speak('ストップしました', 1);
@@ -347,7 +426,7 @@
         } catch(e) {}
       } else {
         recognition.stop();
-        bMic.className = ''; bMic.innerText = '🎤 音声認識 ON';
+        bMic.className = ''; bMic.innerText = '🎤 音声操作 ON';
         speak('音声操作を終了しました', 1);
       }
     });
@@ -355,14 +434,21 @@
     function resetAll() {
       totalDist = 0.0;
       totalPxSinceStart = 0.0;
-      state = 'WAIT_HEAD_INSIDE';
       isInsideYellow = false;
-      statusBadge.className = '';
-      statusBadge.innerText = '待機中 (ヘッド通過待ち)';
+      isManualTracking = false;
       announcedMarks = {};
       speedSamples = [];
       updateDistUI();
       txtSpeed.innerText = "0.0";
+
+      if (operationMode === 'AUTO') {
+        autoState = 'WAIT_HEAD_INSIDE';
+        statusBadge.className = '';
+        statusBadge.innerText = '待機中 (ヘッド通過待ち)';
+      } else {
+        statusBadge.className = 'manual';
+        statusBadge.innerText = '手動モード待機中';
+      }
     }
 
     document.getElementById('b-zero').addEventListener('click', function() {
@@ -457,7 +543,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // === メイン解析ループ（白ヘッド後端トリガー ＆ 黄テープ2段階校正 ＆ 1次元相関トラッキング） ===
+    // === メイン解析ループ ===
     function mainLoop(now) {
       if (v.readyState >= 2 && v.videoWidth > 0) {
         var pw = 160; var ph = 30;
@@ -472,7 +558,7 @@
         ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, pw, ph);
         var imgData = ctxProc.getImageData(0, 0, pw, ph).data;
 
-        // --- カラー＆輝度プロファイル解析 ---
+        // カラー＆輝度解析
         var curProf = new Float32Array(pw);
         var whiteCountTotal = 0;
         var yellowCountTotal = 0;
@@ -499,49 +585,42 @@
         var isWhitePresent = whiteCountTotal > (pw * ph * 0.25);
         var isYellowPresent = yellowCountTotal > (pw * ph * 0.12);
 
-        // --- 後端検知＆2段階校正ステートマシン ---
-        // 1. 白ヘッド侵入
-        if (state === 'WAIT_HEAD_INSIDE' && isWhitePresent) {
-          state = 'WAIT_HEAD_TRAILING';
-          statusBadge.innerText = 'ヘッド通過中...';
-        }
-        // 2. 白ヘッド後端抜け ➔ 0.00m 自動スタート（2回アナウンス）
-        else if (state === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
-          state = 'TRACKING_WAIT_YEL1';
-          totalDist = 0.0;
-          totalPxSinceStart = 0.0;
-          statusBadge.className = 'active';
-          statusBadge.innerText = '測定中 (1m黄テープ待ち)';
-          speak('測定を開始します。測定を開始します。', 2);
-        }
-        // 3. 黄テープ①後端抜け ➔ 1m 暫定校正
-        else if (state === 'TRACKING_WAIT_YEL1') {
-          if (isYellowPresent) {
-            isInsideYellow = true;
-          } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
-            isInsideYellow = false;
-            state = 'TRACKING_WAIT_YEL2';
-            scaleFactor = totalPxSinceStart / 1000.0;
-            totalDist = 1.0;
-            statusBadge.className = 'cal1';
-            statusBadge.innerText = '1次校正済 (2m黄テープ待ち)';
-            calibTxt.innerText = '校正: 1次完了 (' + scaleFactor.toFixed(2) + ' px/mm)';
-            speak('1メートル通過、1次校正完了', 1);
-          }
-        }
-        // 4. 黄テープ②後端抜け ➔ 2m 本校正完了
-        else if (state === 'TRACKING_WAIT_YEL2') {
-          if (isYellowPresent) {
-            isInsideYellow = true;
-          } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
-            isInsideYellow = false;
-            state = 'TRACKING_FINAL';
-            scaleFactor = totalPxSinceStart / 2000.0;
-            totalDist = 2.0;
-            statusBadge.className = 'cal2';
-            statusBadge.innerText = '本校正完了 (最高精度)';
-            calibTxt.innerText = '校正: 本校正完了 (' + scaleFactor.toFixed(2) + ' px/mm)';
-            speak('2メートル通過、本校正完了しました', 1);
+        // --- 自動モード時のテープステートマシン ---
+        if (operationMode === 'AUTO') {
+          if (autoState === 'WAIT_HEAD_INSIDE' && isWhitePresent) {
+            autoState = 'WAIT_HEAD_TRAILING';
+            statusBadge.innerText = 'ヘッド通過中...';
+          } else if (autoState === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
+            autoState = 'TRACKING_WAIT_YEL1';
+            totalDist = 0.0;
+            totalPxSinceStart = 0.0;
+            statusBadge.className = 'active';
+            statusBadge.innerText = '測定中 (1m黄テープ待ち)';
+            speak('測定を開始します。測定を開始します。', 2);
+          } else if (autoState === 'TRACKING_WAIT_YEL1') {
+            if (isYellowPresent) {
+              isInsideYellow = true;
+            } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
+              isInsideYellow = false;
+              autoState = 'TRACKING_WAIT_YEL2';
+              scaleFactor = totalPxSinceStart / 1000.0;
+              totalDist = 1.0;
+              statusBadge.className = 'cal1';
+              statusBadge.innerText = '1次校正済 (2m黄待ち)';
+              speak('1メートル通過、1次校正完了', 1);
+            }
+          } else if (autoState === 'TRACKING_WAIT_YEL2') {
+            if (isYellowPresent) {
+              isInsideYellow = true;
+            } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
+              isInsideYellow = false;
+              autoState = 'TRACKING_FINAL';
+              scaleFactor = totalPxSinceStart / 2000.0;
+              totalDist = 2.0;
+              statusBadge.className = 'cal2';
+              statusBadge.innerText = '本校正完了 (最高精度)';
+              speak('2メートル通過、本校正完了しました', 1);
+            }
           }
         }
 
@@ -559,38 +638,41 @@
           var shiftPx = bestS * (swSrc / pw);
           var dt = (now - lastLoopTime) / 1000.0;
 
-          // エラー検知：逆送り（負の移動）
+          // エラー検知：逆送り
           if (shiftPx < -3.5) {
             triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
           }
 
-          if (Math.abs(shiftPx) > 0.05 && Math.abs(shiftPx) < 45.0) {
+          // 積算可能かどうかの判定（自動モード中または手動トラッキング中）
+          var canTrack = false;
+          if (operationMode === 'AUTO' && (autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING')) {
+            canTrack = true;
+          } else if (operationMode === 'MANUAL' && isManualTracking) {
+            canTrack = true;
+          }
+
+          if (canTrack && Math.abs(shiftPx) > 0.05 && Math.abs(shiftPx) < 45.0) {
             var deltaM = (shiftPx / scaleFactor) / 1000.0;
+            totalDist += deltaM;
+            totalPxSinceStart += shiftPx;
+            updateDistUI();
+            checkDistanceAnnouncements(totalDist);
 
-            if (state !== 'WAIT_HEAD_INSIDE' && state !== 'WAIT_HEAD_TRAILING') {
-              totalDist += deltaM;
-              totalPxSinceStart += shiftPx;
-              updateDistUI();
-              checkDistanceAnnouncements(totalDist);
-
-              if (dt > 0 && dt < 0.25) {
-                var instSpeed = (deltaM / dt) * 60.0;
-                if (instSpeed > 50.0) {
-                  triggerError('⚠️ 異常急加速 / スリップ検知', '急加速検知');
-                }
-                speedSamples.push(Math.max(0, instSpeed));
+            if (dt > 0 && dt < 0.25) {
+              var instSpeed = (deltaM / dt) * 60.0;
+              if (instSpeed > 50.0) {
+                triggerError('⚠️ 異常急加速 / スリップ検知', '急加速検知');
               }
+              speedSamples.push(Math.max(0, instSpeed));
             }
           } else {
             speedSamples.push(0);
           }
 
-          // エラー検知：ケーブルロスト
-          if (!cableDetected && state !== 'WAIT_HEAD_INSIDE') {
+          if (!cableDetected && canTrack) {
             triggerError('⚠️ ケーブルを見失いました', 'ケーブル確認');
           }
 
-          // 速度平滑化
           if (now - lastSpeedTime > 500) {
             if (speedSamples.length > 0) {
               var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
@@ -604,13 +686,6 @@
           }
         }
         prevProfile = curProf;
-
-        frameCount++;
-        if (now - lastFpsTime > 1000) {
-          txtFps.innerText = frameCount + " FPS";
-          frameCount = 0;
-          lastFpsTime = now;
-        }
       }
 
       lastLoopTime = now;
