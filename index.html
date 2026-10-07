@@ -62,6 +62,26 @@
       background: rgba(0,0,0,0.65); padding: 2px 5px; border-radius: 2px;
     }
 
+    /* 診断パネル ＆ 解析プレビュー */
+    #diag-panel {
+      position: absolute; top: calc(36% + 112px); left: 4%; right: 4%;
+      background: rgba(15, 23, 42, 0.92); border: 1px solid #3b82f6;
+      border-radius: 6px; padding: 6px; z-index: 20;
+      display: flex; gap: 8px; align-items: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    }
+    #diag-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    #diag-msg { font-size: 11px; font-weight: bold; color: #4ade80; }
+    #diag-sub { font-size: 9px; color: #94a3b8; }
+    #diag-preview-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    #diag-canvas {
+      width: 110px; height: 26px; border: 1px solid #475569;
+      border-radius: 3px; background: #000; display: block;
+    }
+    .diag-lbl { font-size: 8px; color: #64748b; }
+
     #error-banner {
       position: absolute; top: 135px; left: 50%; transform: translateX(-50%);
       background: rgba(59, 130, 246, 0.95); border: 1px solid #93c5fd;
@@ -165,6 +185,18 @@
       <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード (テープ不要)</span>
     </div>
 
+    <!-- 診断＆エッジプレビューパネル -->
+    <div id="diag-panel">
+      <div id="diag-info">
+        <span id="diag-msg">🔍 カメラ待機中...</span>
+        <span id="diag-sub">カメラを起動すると光量・エッジを診断します</span>
+      </div>
+      <div id="diag-preview-wrap">
+        <canvas id="diag-canvas" width="160" height="32"></canvas>
+        <span class="diag-lbl">解析目線エッジ画</span>
+      </div>
+    </div>
+
     <div id="error-banner">🔄 バック中...</div>
 
     <div id="dash">
@@ -250,15 +282,14 @@
     var lastSpeedTime = performance.now();
     var currentSpeed = 0.0;
     var lastProcessTime = 0;
+    var lastDiagTime = 0;
 
-    // 逆再生タイマー制御
+    // 逆再生制御
     var reverseInterval = null;
     var isReversing = false;
-
-    // 逆送り（バック中）連続検知用
     var backwardStreak = 0;
 
-    // 解像度＆固定バッファ（メモリ枯渇防止）
+    // 固定バッファ（Safariクラッシュ完全防止ゼロアロケーション）
     var PW = 200;
     var PH = 32;
     var rawProf = new Float32Array(PW);
@@ -273,6 +304,14 @@
     cProc.width = PW;
     cProc.height = PH;
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
+
+    // 診断用プレビュー
+    var diagPanel = document.getElementById('diag-panel');
+    var diagMsg = document.getElementById('diag-msg');
+    var diagSub = document.getElementById('diag-sub');
+    var diagCanvas = document.getElementById('diag-canvas');
+    var ctxDiag = diagCanvas.getContext('2d');
+    var diagImgData = ctxDiag.createImageData(160, 32);
 
     var txtDist = document.getElementById('txt-dist');
     var txtRemain = document.getElementById('txt-remain');
@@ -434,6 +473,7 @@
       backwardStreak = 0;
       updateDistUI();
       if (v.paused) v.play();
+      diagPanel.style.display = 'none'; // 測定開始時は診断パネルを隠す
       speak('測定を開始します。', 2);
     }
 
@@ -457,6 +497,7 @@
         txtEta.innerText = "予想: --分--秒";
         backwardStreak = 0;
         errorBanner.style.display = 'none';
+        diagPanel.style.display = 'flex'; // 停止中は診断パネルを再表示
       } else {
         bPause.className = 'orange';
         bPause.innerText = '一時停止 ⏸';
@@ -464,6 +505,7 @@
         isManualTracking = true;
         hasPrevProf = false;
         backwardStreak = 0;
+        diagPanel.style.display = 'none';
       }
     }
 
@@ -478,6 +520,7 @@
       speedSamples = [];
       backwardStreak = 0;
       errorBanner.style.display = 'none';
+      diagPanel.style.display = 'flex';
       updateDistUI();
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
@@ -639,7 +682,57 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 解析ループ（探索幅maxS=40 ＆ 微分エッジ強調）
+    // 環境診断＆エッジ描画関数（メモリ生成ゼロ）
+    function runDiagnostics(imgData, avgLum, glareCount, now) {
+      if (now - lastDiagTime < 250) return; // 0.25秒毎に診断更新
+      lastDiagTime = now;
+
+      // エッジの平均強度算出
+      var sumEdge = 0;
+      for (var x = 0; x < PW; x++) { sumEdge += Math.abs(curProf[x]); }
+      var avgEdge = sumEdge / PW;
+
+      // 判定ロジック
+      if (avgLum < 35) {
+        diagMsg.innerText = "❌ 光量不足（暗すぎます）";
+        diagMsg.style.color = "#ef4444";
+        diagSub.innerText = "照明・投光器でケーブルを照らしてください";
+      } else if (avgLum > 220) {
+        diagMsg.innerText = "❌ 光量過多（白飛びしています）";
+        diagMsg.style.color = "#ef4444";
+        diagSub.innerText = "強い直射日光・光源の角度を調整してください";
+      } else if (glareCount > (PW * PH * 0.08)) {
+        diagMsg.innerText = "⚠️ 照り返し過多（白光り・反射）";
+        diagMsg.style.color = "#facc15";
+        diagSub.innerText = "斜めから光を当てるか、カメラ角度を変えてください";
+      } else if (avgEdge < 1.8) {
+        diagMsg.innerText = "⚠️ コントラスト不足（特徴が薄い）";
+        diagMsg.style.color = "#facc15";
+        diagSub.innerText = "ケーブルの筋・印字が見えるようピント/距離を調整";
+      } else {
+        diagMsg.innerText = "🟢 測定環境：良好（準備完了）";
+        diagMsg.style.color = "#4ade80";
+        diagSub.innerText = "十分なエッジ特徴量を検知しています";
+      }
+
+      // エッジ画プレビュー描画（ゼロアロケーション）
+      var dData = diagImgData.data;
+      var dw = 160, dh = 32;
+      for (var dx = 0; dx < dw; dx++) {
+        var srcX = Math.floor(dx * (PW / dw));
+        var val = Math.min(255, Math.floor(Math.abs(curProf[srcX]) * 18));
+        for (var dy = 0; dy < dh; dy++) {
+          var pIdx = (dy * dw + dx) * 4;
+          dData[pIdx] = val;
+          dData[pIdx+1] = val;
+          dData[pIdx+2] = val;
+          dData[pIdx+3] = 255;
+        }
+      }
+      ctxDiag.putImageData(diagImgData, 0, 0);
+    }
+
+    // 解析ループ
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -671,8 +764,10 @@
 
           var whiteCountTotal = 0;
           var yellowCountTotal = 0;
+          var glareCount = 0;
+          var sumLumTotal = 0;
 
-          // 1. 輝度の列平均算出
+          // 1. 輝度の列平均算出＆診断用特徴集計
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -682,9 +777,12 @@
               var b = imgData[idx+2];
 
               if (r > 210 && g > 210 && b > 210) whiteCountTotal++;
+              if (r > 240 && g > 240 && b > 240) glareCount++;
               if (r > 160 && g > 150 && b < 100 && (r + g - 2 * b) > 110) yellowCountTotal++;
 
-              sumG += 0.299 * r + 0.587 * g + 0.114 * b;
+              var lum = 0.299 * r + 0.587 * g + 0.114 * b;
+              sumG += lum;
+              sumLumTotal += lum;
             }
             rawProf[x] = sumG / PH;
           }
@@ -699,6 +797,9 @@
               curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
             }
           }
+
+          // 3. 環境診断＆エッジ描画を実行
+          runDiagnostics(imgData, sumLumTotal / (PW * PH), glareCount, now);
 
           // 自動モード
           if (operationMode === 'AUTO') {
@@ -742,7 +843,7 @@
             }
           }
 
-          // 相関トラッキング（探索幅を40ピクセルへ拡大）
+          // 相関トラッキング（探索幅maxS=40）
           if (hasPrevProf) {
             var maxS = 40, bestS = 0, minDiff = 99999999;
             for (var s = -maxS; s <= maxS; s++) {
