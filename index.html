@@ -38,6 +38,7 @@
       width: 100%;
       background: #000;
       overflow: hidden;
+      touch-action: none; /* ドラッグ操作を優先 */
     }
     video {
       position: absolute;
@@ -45,6 +46,7 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      pointer-events: none;
     }
     #overlay {
       position: absolute;
@@ -55,6 +57,7 @@
       pointer-events: none;
     }
 
+    /* ダッシュボード */
     #dash {
       position: absolute;
       top: 8px;
@@ -76,6 +79,7 @@
     .card-val { font-size: 21px; font-weight: bold; font-variant-numeric: tabular-nums; }
     .card-unit { font-size: 10px; color: #888; margin-left: 1px; }
 
+    /* モード切替 */
     #scale-selector {
       position: absolute;
       top: 72px;
@@ -119,19 +123,20 @@
       white-space: nowrap;
     }
 
+    /* 動画コントローラー */
     #v-bar {
       position: absolute;
       bottom: 8px;
       left: 8px;
       right: 8px;
-      background: rgba(15, 23, 42, 0.9);
+      background: rgba(15, 23, 42, 0.92);
       border: 1px solid #38bdf8;
       border-radius: 8px;
       padding: 6px 8px;
       z-index: 25;
       display: none;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
     }
     .v-row { display: flex; gap: 4px; align-items: center; }
     .v-btn {
@@ -139,10 +144,28 @@
       background: #1e293b;
       color: #fff;
       border: 1px solid #475569;
-      padding: 6px 0;
+      padding: 5px 0;
       border-radius: 4px;
       font-size: 11px;
       text-align: center;
+      cursor: pointer;
+    }
+    .speed-btn {
+      flex: 1;
+      background: #0f172a;
+      color: #94a3b8;
+      border: 1px solid #334155;
+      padding: 3px 0;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      text-align: center;
+      cursor: pointer;
+    }
+    .speed-btn.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: #fff;
     }
 
     footer {
@@ -186,6 +209,7 @@
     <canvas id="c-proc" style="display:none;"></canvas>
     <canvas id="overlay"></canvas>
 
+    <!-- ダッシュボード -->
     <div id="dash">
       <div class="card">
         <div class="card-lbl">延線距離</div>
@@ -209,8 +233,16 @@
     <div id="voice-toast">🎤 音声案内準備完了</div>
 
     <div id="v-bar">
-      <div style="display:flex; justify-content:space-between; font-size:10px; color:#38bdf8;">
-        <span>🎬 動画コントローラー</span>
+      <div class="v-row" style="margin-bottom: 2px;">
+        <span style="font-size: 10px; color: #38bdf8; min-width: 50px; font-weight: bold;">速度:</span>
+        <button class="speed-btn" data-speed="0.25">0.25x</button>
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn active" data-speed="1.0">1.0x</button>
+        <button class="speed-btn" data-speed="1.5">1.5x</button>
+        <button class="speed-btn" data-speed="2.0">2.0x</button>
+      </div>
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8;">
+        <span>🎬 コントローラー</span>
         <span id="v-time">0.0s</span>
       </div>
       <div class="v-row">
@@ -245,16 +277,19 @@
     var targetDist = 31.0;
     var isRunning = false;
     var isPaused = false;
+    var currentPlaybackRate = 1.0;
 
-    // 音声案内トリガーフラグ
+    // 測定枠の垂直位置（画面比率：初期値をやや下寄りの65%に配置）
+    var boxYRatio = 0.65;
+
     var announcedMarks = {};
-
     var speedSamples = [];
     var lastSpeedTime = performance.now();
     var currentSpeed = 0.0;
     var lastLoopTime = performance.now();
     var prevProfile = null;
 
+    var stage = document.getElementById('stage');
     var v = document.getElementById('v');
     var cProc = document.getElementById('c-proc');
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
@@ -269,6 +304,25 @@
     var vTime = document.getElementById('v-time');
     var bPause = document.getElementById('b-pause');
     var voiceToast = document.getElementById('voice-toast');
+
+    // === 枠の指ドラッグ移動処理 ===
+    var isDragging = false;
+    stage.addEventListener('pointerdown', function(e) {
+      if (e.target.closest('#v-bar')) return;
+      isDragging = true;
+      moveBox(e.clientY);
+    });
+    window.addEventListener('pointermove', function(e) {
+      if (!isDragging) return;
+      moveBox(e.clientY);
+    });
+    window.addEventListener('pointerup', function() { isDragging = false; });
+
+    function moveBox(clientY) {
+      var rect = stage.getBoundingClientRect();
+      var relY = (clientY - rect.top) / rect.height;
+      boxYRatio = Math.max(0.25, Math.min(0.85, relY));
+    }
 
     // === 音声合成 ===
     function speak(text) {
@@ -287,12 +341,9 @@
       setTimeout(function() { voiceToast.style.display = 'none'; }, 2200);
     }
 
-    // === 距離音声案内ロジック（5m刻み ＆ 残り10mカウントダウン ＆ 超過） ===
     function checkDistanceAnnouncements(currentD) {
       var diff = targetDist - currentD;
 
-      // 1. スタート後 5m 刻み案内 (5m, 10m, 15m, 20m, 25m ...)
-      // 残り10mを切る前（diff > 10.5m）の範囲で発声
       if (diff > 10.5) {
         var step5 = Math.floor(currentD / 5.0) * 5;
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
@@ -302,7 +353,6 @@
         }
       }
 
-      // 2. 残り10mから1mカウントダウン (10, 9, 8 ... 1m)
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
           announcedMarks['rem_' + m] = true;
@@ -311,14 +361,12 @@
         }
       }
 
-      // 3. 0m 到達
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
         announcedMarks['zero'] = true;
         speak('ゼロ、到達しました');
         return;
       }
 
-      // 4. 超過加算 (+1m, +2m, +3m...)
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
         if (overM >= 1 && overM <= 15 && !announcedMarks['over_' + overM]) {
@@ -348,20 +396,12 @@
         showToast('🎤 認識: 「' + cmd + '」');
         handleVoiceCommand(cmd);
       };
-
-      recognition.onerror = function() {
-        if (isMicListening) { try { recognition.start(); } catch(err){} }
-      };
-      recognition.onend = function() {
-        if (isMicListening) { try { recognition.start(); } catch(err){} }
-      };
+      recognition.onerror = function() { if (isMicListening) { try { recognition.start(); } catch(err){} } };
+      recognition.onend = function() { if (isMicListening) { try { recognition.start(); } catch(err){} } };
     }
 
     bMic.addEventListener('click', function() {
-      if (!SpeechRecognition) {
-        alert('お使いの環境は音声認識に対応していません');
-        return;
-      }
+      if (!SpeechRecognition) { alert('音声認識非対応'); return; }
       isMicListening = !isMicListening;
       if (isMicListening) {
         try {
@@ -371,9 +411,7 @@
           micDot.className = 'mic-dot active';
           micTxt.innerText = '音声: 待受中';
           speak('音声操作を開始します');
-        } catch(e) {
-          alert('マイク開始エラー: ' + e.message);
-        }
+        } catch(e) { alert('マイク開始エラー: ' + e.message); }
       } else {
         recognition.stop();
         bMic.className = '';
@@ -420,9 +458,7 @@
       var m = text.match(/\d+(\.\d+)?/);
       if (m) return parseFloat(m[0]);
       var kanji = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'二十':20,'三十':30,'三十一':31,'四十':40,'五十':50 };
-      for (var k in kanji) {
-        if (text.includes(k)) return kanji[k];
-      }
+      for (var k in kanji) { if (text.includes(k)) return kanji[k]; }
       return 0;
     }
 
@@ -444,12 +480,24 @@
       txtRemain.style.color = (rem <= 0) ? '#ef4444' : '#38bdf8';
     }
 
-    // カメラ・UI
+    // 再生速度セレクタ
+    document.querySelectorAll('.speed-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.speed-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentPlaybackRate = parseFloat(btn.getAttribute('data-speed'));
+        v.playbackRate = currentPlaybackRate;
+        showToast('速度: ' + currentPlaybackRate + 'x');
+      });
+    });
+
+    // モード切替
     var tabClose = document.getElementById('tab-close');
     var tabWide = document.getElementById('tab-wide');
     tabClose.addEventListener('click', function() { scaleFactor = 2.5; tabClose.className = 'tab-btn active'; tabWide.className = 'tab-btn'; });
     tabWide.addEventListener('click', function() { scaleFactor = 1.4; tabWide.className = 'tab-btn active'; tabClose.className = 'tab-btn'; });
 
+    // カメラ起動
     document.getElementById('b-cam').addEventListener('click', function() {
       vBar.style.display = 'none';
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -458,6 +506,7 @@
           video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
         }).then(function(stream) {
           v.srcObject = stream;
+          v.playbackRate = 1.0;
           v.play();
           isPaused = false;
           bPause.innerText = '一時停止 ⏸';
@@ -466,12 +515,14 @@
       }
     });
 
+    // 動画読込
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t) { t.stop(); }); v.srcObject = null; }
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
+      v.playbackRate = currentPlaybackRate;
       v.play();
       isPaused = false;
       bPause.innerText = '一時停止 ⏸';
@@ -520,8 +571,8 @@
       requestAnimationFrame(mainLoop);
     }
 
+    // === メイン解析ループ ===
     function mainLoop(now) {
-      var stage = document.getElementById('stage');
       var sw = stage.clientWidth;
       var sh = stage.clientHeight;
 
@@ -530,11 +581,13 @@
         overlay.height = sh;
       }
 
-      var bw = Math.floor(sw * 0.92);
-      var bh = 150;
+      // 測定枠のサイズ（ドラッグ位置 boxYRatio と完全連動）
+      var bw = Math.floor(sw * 0.94);
+      var bh = 110;
       var bx = Math.floor((sw - bw) / 2);
-      var by = Math.floor(sh * 0.50 - bh / 2);
+      var by = Math.floor(sh * boxYRatio - bh / 2);
 
+      // ガイド枠描画
       ctxOverlay.clearRect(0, 0, sw, sh);
       ctxOverlay.strokeStyle = isPaused ? '#94a3b8' : '#22c55e';
       ctxOverlay.lineWidth = 2;
@@ -544,16 +597,16 @@
       ctxOverlay.lineWidth = 3;
       ctxOverlay.beginPath(); ctxOverlay.moveTo(bx, by + cLen); ctxOverlay.lineTo(bx, by); ctxOverlay.lineTo(bx + cLen, by); ctxOverlay.stroke();
       ctxOverlay.beginPath(); ctxOverlay.moveTo(bx + bw - cLen, by); ctxOverlay.lineTo(bx + bw); ctxOverlay.lineTo(bx + bw, by + cLen); ctxOverlay.stroke();
-      ctxOverlay.beginPath(); ctxOverlay.moveTo(bx, by + bh - cLen); ctxOverlay.lineTo(bx, by); ctxOverlay.lineTo(bx + cLen, by + bh); ctxOverlay.stroke();
+      ctxOverlay.beginPath(); ctxOverlay.moveTo(bx, by + bh - cLen); ctxOverlay.lineTo(bx, by + bh); ctxOverlay.lineTo(bx + cLen, by + bh); ctxOverlay.stroke();
       ctxOverlay.beginPath(); ctxOverlay.moveTo(bx + bw - cLen, by + bh); ctxOverlay.lineTo(bx + bw, by + bh); ctxOverlay.lineTo(bx + bw, by + bh - cLen); ctxOverlay.stroke();
 
       ctxOverlay.fillStyle = isPaused ? '#94a3b8' : '#22c55e';
-      ctxOverlay.font = '12px sans-serif';
-      ctxOverlay.fillText(isPaused ? '⏸ 測定停止中' : '🎯 ケーブル測定枠', bx, by - 8);
+      ctxOverlay.font = '11px sans-serif';
+      ctxOverlay.fillText(isPaused ? '⏸ 測定停止中' : '🎯 ケーブル枠 (指で上下にドラッグして合わせてください)', bx, by - 6);
 
       if (v.readyState >= 2 && v.videoWidth > 0) {
         var pw = 160;
-        var ph = 40;
+        var ph = 30;
         if (cProc.width !== pw || cProc.height !== ph) { cProc.width = pw; cProc.height = ph; }
 
         var vw = v.videoWidth;
@@ -598,35 +651,3 @@
           var dt = (now - lastLoopTime) / 1000.0;
 
           if (Math.abs(deltaM) < 0.05 && Math.abs(deltaM) > 0.0006) {
-            totalDist += deltaM;
-            updateDistUI();
-            checkDistanceAnnouncements(totalDist);
-
-            if (dt > 0 && dt < 0.25) {
-              speedSamples.push(Math.max(0, (deltaM / dt) * 60.0));
-            }
-          } else {
-            speedSamples.push(0);
-          }
-
-          if (now - lastSpeedTime > 500) {
-            if (speedSamples.length > 0) {
-              var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
-              currentSpeed = currentSpeed * 0.3 + avg * 0.7;
-              speedSamples = [];
-            } else {
-              currentSpeed = 0.0;
-            }
-            txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
-            lastSpeedTime = now;
-          }
-        }
-        prevProfile = curProf;
-      }
-
-      lastLoopTime = now;
-      requestAnimationFrame(mainLoop);
-    }
-  </script>
-</body>
-</html>
