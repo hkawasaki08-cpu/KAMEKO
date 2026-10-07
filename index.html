@@ -155,7 +155,7 @@
   </header>
 
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline muted autoplay loop></video>
+    <video id="v" playsinline webkit-playsinline muted loop></video>
     <canvas id="c-proc" style="display:none;"></canvas>
 
     <div id="target-box">
@@ -206,7 +206,7 @@
       <div class="v-row">
         <button class="v-btn" id="vb-b1">-1秒</button>
         <button class="v-btn" id="vb-bstep">◀ コマ戻</button>
-        <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
+        <button class="v-btn" id="vb-play" style="background:#0284c7;">再生 ▶</button>
         <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
         <button class="v-btn" id="vb-f1">+1秒</button>
       </div>
@@ -234,8 +234,8 @@
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
-    var isPaused = false;
-    var isManualTracking = true;
+    var isPaused = true; // 初期停止状態
+    var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
@@ -284,7 +284,6 @@
       }
     }
 
-    // エラーバナー＆警告音声
     function triggerError(msg, audioMsg) {
       var now = performance.now();
       if (now - lastErrorTime > 3000) {
@@ -326,10 +325,10 @@
         return;
       }
 
-      // 超過加算案内
+      // 超過加算案内（プラス○メートル）
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
-        if (overM >= 1 && overM <= 20 && !announcedMarks['over_' + overM]) {
+        if (overM >= 1 && overM <= 25 && !announcedMarks['over_' + overM]) {
           announcedMarks['over_' + overM] = true;
           speak('プラス ' + overM + 'メートル', 1);
         }
@@ -356,12 +355,14 @@
             bPause.className = 'orange';
             bPause.innerText = '一時停止 ⏸';
             prevProfile = null;
+            if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
             speak('スタートしました', 1);
           }
         } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
           isPaused = true;
           bPause.className = 'green';
           bPause.innerText = '測定再開 ▶';
+          if (!v.paused) { v.pause(); vbPlay.innerText = '再生 ▶'; }
           txtSpeed.innerText = "0.0";
           speak('ストップしました', 1);
         } else if (cmd.includes('リセット')) {
@@ -389,7 +390,7 @@
       }
     });
 
-    // === モード切替タブ ===
+    // モード切替タブ
     var tabAuto = document.getElementById('tab-auto');
     var tabManual = document.getElementById('tab-manual');
 
@@ -453,7 +454,7 @@
       totalDist = 0.0;
       totalPxSinceStart = 0.0;
       isInsideYellow = false;
-      isManualTracking = (operationMode === 'MANUAL');
+      isManualTracking = false;
       announcedMarks = {};
       speedSamples = [];
       updateDistUI();
@@ -487,11 +488,18 @@
       }
     });
 
+    // 【重要】UI更新：超過時は「+」表示に変更
     function updateDistUI() {
       txtDist.innerText = totalDist.toFixed(2);
       var rem = targetDist - totalDist;
-      txtRemain.innerText = rem.toFixed(2);
-      txtRemain.style.color = (rem <= 0) ? '#ef4444' : '#38bdf8';
+      if (rem < 0) {
+        // 超過時はプラス表記（例: +3.08m）
+        txtRemain.innerText = '+' + Math.abs(rem).toFixed(2);
+        txtRemain.style.color = '#ef4444'; // 赤字
+      } else {
+        txtRemain.innerText = rem.toFixed(2);
+        txtRemain.style.color = '#38bdf8'; // 水色
+      }
     }
 
     var spdBtns = document.querySelectorAll('.speed-btn');
@@ -512,12 +520,13 @@
           video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
         }).then(function(stream) {
           v.srcObject = stream; v.playbackRate = 1.0; v.play();
-          isPaused = false; bPause.innerText = '一時停止 ⏸';
+          isPaused = false; bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸';
           startLoop();
         }).catch(function(e) { alert("カメラエラー: " + e.message); });
       }
     });
 
+    // 【重要】動画読込：停止状態（0.0s）でロード待機
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -525,19 +534,32 @@
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
       v.playbackRate = currentPlaybackRate;
-      v.play();
-      vbPlay.innerText = '一時停止 ⏸';
-      isPaused = false;
-      bPause.className = 'orange';
-      bPause.innerText = '一時停止 ⏸';
-      isManualTracking = true;
+      v.currentTime = 0;
+      v.pause(); // 停止状態で待機
+      vbPlay.innerText = '再生 ▶';
+      isPaused = true;
+      bPause.className = 'green';
+      bPause.innerText = '測定再開 ▶';
+      isManualTracking = false;
       startLoop();
     });
 
     vbPlay.addEventListener('click', function() {
-      if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
-      else { v.pause(); vbPlay.innerText = '再生 ▶'; }
+      if (v.paused) {
+        v.play();
+        vbPlay.innerText = '一時停止 ⏸';
+        isPaused = false;
+        bPause.className = 'orange';
+        bPause.innerText = '一時停止 ⏸';
+      } else {
+        v.pause();
+        vbPlay.innerText = '再生 ▶';
+        isPaused = true;
+        bPause.className = 'green';
+        bPause.innerText = '測定再開 ▶';
+      }
     });
+
     document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
     document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 1); });
     document.getElementById('vb-bstep').addEventListener('click', function() { v.pause(); vbPlay.innerText = '再生 ▶'; v.currentTime = Math.max(0, v.currentTime - 0.033); });
@@ -548,8 +570,15 @@
 
     bPause.addEventListener('click', function() {
       isPaused = !isPaused;
-      if (isPaused) { bPause.className = 'green'; bPause.innerText = '測定再開 ▶'; txtSpeed.innerText = "0.0"; }
-      else { bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸'; prevProfile = null; }
+      if (isPaused) {
+        bPause.className = 'green'; bPause.innerText = '測定再開 ▶';
+        if (!v.paused) { v.pause(); vbPlay.innerText = '再生 ▶'; }
+        txtSpeed.innerText = "0.0";
+      } else {
+        bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸';
+        if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
+        prevProfile = null;
+      }
     });
 
     function startLoop() {
@@ -558,7 +587,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // === メイン解析ループ ===
+    // メイン解析ループ
     function mainLoop(now) {
       if (v.readyState >= 2 && v.videoWidth > 0) {
         var pw = 160; var ph = 32;
@@ -604,7 +633,7 @@
           curProf[x] = sumG / ph;
         }
 
-        // 自動モード時のテープ検知・2段階校正
+        // 自動モード時のテープ検知
         if (operationMode === 'AUTO') {
           var isWhitePresent = whiteCountTotal > (pw * ph * 0.25);
           var isYellowPresent = yellowCountTotal > (pw * ph * 0.12);
@@ -660,7 +689,6 @@
           var shiftPx = bestS * (swSrc / pw);
           var dt = (now - lastLoopTime) / 1000.0;
 
-          // 逆送り検知
           if (shiftPx < -3.5) {
             triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
           }
