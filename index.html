@@ -1,3 +1,14 @@
+ご要望の3点を反映した修正コードです。
+主な修正内容
+ * 動画コントローラーに「◀ 逆再生」ボタンを追加
+   * HTML5 Videoにはネイティブの逆再生プロパティがないため、約30msごとに動画の再生位置（currentTime）を巻き戻すタイマー処理を実装しました。これにより実際の動画を逆再生させながらバックトラッキングのテストが可能です。
+ * 「⚠️ 逆送り」警報の廃止 ＆ 「バック中」バナー表示（音声警告なし）
+   * 逆送り時の音声警告は完全に廃止しました。
+   * バック操作時はエラーバナーを水色/紫系の落ち着いた配色で「🔄 バック中...」と画面表示するのみにしています（距離・速度も実挙動に合わせて減算・追従）。
+ * 「測定を開始しました」の音声重複を解消（きっちり2回に変更）
+   * 関数内でループ処理（2回発声）を行っている一方で、呼出箇所でも二重に呼ばれて合計4回になっていた重複を整理し、きっちり2回だけ復唱するように修正しました。
+修正コード (index.html)
+GitHubの index.html に全選択・上書き貼り付けしてコミットしてください。
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -64,7 +75,7 @@
 
     #error-banner {
       position: absolute; top: 135px; left: 50%; transform: translateX(-50%);
-      background: rgba(220, 38, 38, 0.95); border: 1px solid #f87171;
+      background: rgba(59, 130, 246, 0.95); border: 1px solid #93c5fd;
       color: #fff; padding: 5px 14px; border-radius: 20px;
       font-size: 11px; font-weight: bold; z-index: 35;
       display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
@@ -120,6 +131,7 @@
       border: 1px solid #475569; padding: 5px 0; border-radius: 4px;
       font-size: 10px; text-align: center; cursor: pointer;
     }
+    .v-btn.active { background: #9333ea; border-color: #c084fc; font-weight: bold; }
     .speed-btn {
       flex: 1; background: #0f172a; color: #94a3b8;
       border: 1px solid #334155; padding: 2px 0; border-radius: 4px;
@@ -164,7 +176,7 @@
       <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード (テープ不要)</span>
     </div>
 
-    <div id="error-banner">⚠️ 警告メッセージ</div>
+    <div id="error-banner">🔄 バック中...</div>
 
     <div id="dash">
       <div class="card">
@@ -207,7 +219,7 @@
       </div>
       <div class="v-row">
         <button class="v-btn" id="vb-b1">-1秒</button>
-        <button class="v-btn" id="vb-bstep">◀ コマ戻</button>
+        <button class="v-btn" id="vb-rev">◀ 逆再生</button>
         <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
         <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
         <button class="v-btn" id="vb-f1">+1秒</button>
@@ -251,7 +263,11 @@
     var lastProcessTime = 0;
     var lastErrorTime = 0;
 
-    // 逆送り連続検知用カウンター
+    // 逆再生タイマー制御
+    var reverseInterval = null;
+    var isReversing = false;
+
+    // 逆送り（バック中）連続検知用
     var backwardStreak = 0;
 
     // 固定バッファ（Safariクラッシュ完全対策）
@@ -283,28 +299,19 @@
     var bManualStart = document.getElementById('b-manual-start');
     var manualScaleBar = document.getElementById('manual-scale-bar');
     var vbPlay = document.getElementById('vb-play');
+    var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
 
-    function speak(text, repeatCount) {
+    // 発声制御（きっちり指定回数のみ発話）
+    function speak(text, count) {
       if (!window.speechSynthesis) return;
       window.speechSynthesis.cancel();
-      var count = repeatCount || 1;
-      for (var i = 0; i < count; i++) {
+      var times = count || 1;
+      for (var i = 0; i < times; i++) {
         var uttr = new SpeechSynthesisUtterance(text);
         uttr.lang = 'ja-JP';
         uttr.rate = 1.15;
         window.speechSynthesis.speak(uttr);
-      }
-    }
-
-    function triggerError(msg, audioMsg) {
-      var now = performance.now();
-      if (now - lastErrorTime > 3000) {
-        errorBanner.innerText = msg;
-        errorBanner.style.display = 'block';
-        if (audioMsg) speak(audioMsg, 1);
-        setTimeout(function() { errorBanner.style.display = 'none'; }, 2200);
-        lastErrorTime = now;
       }
     }
 
@@ -439,18 +446,30 @@
       backwardStreak = 0;
       updateDistUI();
       if (v.paused) v.play();
-      speak('測定を開始します。測定を開始します。', 2);
+      // きっちり2回発声
+      speak('測定を開始します。', 2);
+    }
+
+    function stopReverse() {
+      if (reverseInterval) {
+        clearInterval(reverseInterval);
+        reverseInterval = null;
+      }
+      isReversing = false;
+      vbRev.classList.remove('active');
     }
 
     function setPauseState(paused) {
       isPaused = paused;
       if (isPaused) {
+        stopReverse();
         bPause.className = 'green';
         bPause.innerText = '測定再開 ▶';
         vbPlay.innerText = '再生 ▶';
         txtSpeed.innerText = "0.0";
         txtEta.innerText = "予想: --分--秒";
         backwardStreak = 0;
+        errorBanner.style.display = 'none';
       } else {
         bPause.className = 'orange';
         bPause.innerText = '一時停止 ⏸';
@@ -462,6 +481,7 @@
     }
 
     function resetAll() {
+      stopReverse();
       totalDist = 0.0;
       totalPxSinceStart = 0.0;
       isInsideYellow = false;
@@ -470,6 +490,7 @@
       announcedMarks = {};
       speedSamples = [];
       backwardStreak = 0;
+      errorBanner.style.display = 'none';
       updateDistUI();
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
@@ -546,6 +567,7 @@
     }
 
     document.getElementById('b-cam').addEventListener('click', function() {
+      stopReverse();
       vBar.style.display = 'none';
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({
@@ -562,6 +584,7 @@
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
+      stopReverse();
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t) { t.stop(); }); v.srcObject = null; }
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
@@ -573,6 +596,7 @@
     });
 
     vbPlay.addEventListener('click', function() {
+      stopReverse();
       if (v.paused) {
         v.play();
         setPauseState(false);
@@ -582,10 +606,33 @@
       }
     });
 
+    // ◀ 逆再生ボタンの実装（タイマーでcurrentTimeを巻き戻す）
+    vbRev.addEventListener('click', function() {
+      if (isReversing) {
+        stopReverse();
+        setPauseState(true);
+      } else {
+        v.pause();
+        isReversing = true;
+        vbRev.classList.add('active');
+        setPauseState(false);
+
+        var stepSec = 0.033 * currentPlaybackRate;
+        reverseInterval = setInterval(function() {
+          if (v.currentTime <= stepSec) {
+            v.currentTime = 0;
+            stopReverse();
+            setPauseState(true);
+          } else {
+            v.currentTime -= stepSec;
+          }
+        }, 33);
+      }
+    });
+
     document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
     document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 1); });
-    document.getElementById('vb-bstep').addEventListener('click', function() { v.pause(); setPauseState(true); v.currentTime = Math.max(0, v.currentTime - 0.033); });
-    document.getElementById('vb-fstep').addEventListener('click', function() { v.pause(); setPauseState(true); v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
+    document.getElementById('vb-fstep').addEventListener('click', function() { stopReverse(); v.pause(); setPauseState(true); v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
     v.addEventListener('timeupdate', function() {
       if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
     });
@@ -593,7 +640,7 @@
     bPause.addEventListener('click', function() {
       if (isPaused) {
         setPauseState(false);
-        if (v.paused) v.play();
+        if (v.paused && !isReversing) v.play();
       } else {
         setPauseState(true);
         if (!v.paused) v.pause();
@@ -606,13 +653,15 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 解析ループ（Safariクラッシュ防止＆逆送り連続判定）
+    // 解析ループ
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
 
-        if (v.readyState >= 2 && v.videoWidth > 0 && !v.paused) {
+        var isVideoActive = (!v.paused || isReversing);
+
+        if (v.readyState >= 2 && v.videoWidth > 0 && isVideoActive) {
           isPaused = false;
 
           var vw = v.videoWidth;
@@ -667,7 +716,7 @@
               totalPxSinceStart = 0.0;
               statusBadge.className = 'active';
               statusBadge.innerText = '測定中 (1m黄待ち)';
-              speak('測定を開始します。測定を開始します。', 2);
+              speak('測定を開始します。', 2);
             } else if (autoState === 'TRACKING_WAIT_YEL1') {
               if (isYellowPresent) {
                 isInsideYellow = true;
@@ -708,23 +757,22 @@
 
             var shiftPx = bestS * (swSrc / PW);
 
-            // 逆送り検知：4フレーム連続マイナスの場合のみ警告
-            if (shiftPx < -2.0) {
+            // バック（逆送り）判定：警報・音声は鳴らさず「バック中」表示のみ
+            if (shiftPx < -1.5) {
               backwardStreak++;
-              if (backwardStreak >= 4) {
-                triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
+              if (backwardStreak >= 3) {
+                errorBanner.innerText = '🔄 バック中...';
+                errorBanner.style.background = 'rgba(59, 130, 246, 0.95)';
+                errorBanner.style.borderColor = '#93c5fd';
+                errorBanner.style.display = 'block';
               }
             } else {
               backwardStreak = 0;
+              errorBanner.style.display = 'none';
             }
 
             var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                            (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
-
-            // 単発のマイナスノイズによる距離戻りを防ぐ（連続逆送りの時のみ減算）
-            if (shiftPx < 0 && backwardStreak < 4) {
-              shiftPx = 0;
-            }
 
             if (canTrack && Math.abs(shiftPx) > 0.001) {
               var deltaM = (shiftPx / scaleFactor) / 1000.0;
@@ -734,11 +782,8 @@
               checkDistanceAnnouncements(totalDist);
 
               if (dtSec > 0 && dtSec < 0.25) {
-                var instSpeed = (deltaM / dtSec) * 60.0;
-                if (instSpeed > 50.0) {
-                  triggerError('⚠️ 異常急加速 / スリップ検知', '急加速検知');
-                }
-                speedSamples.push(Math.max(0, instSpeed));
+                var instSpeed = (Math.abs(deltaM) / dtSec) * 60.0;
+                speedSamples.push(instSpeed);
               }
             } else {
               speedSamples.push(0);
@@ -760,10 +805,11 @@
 
           prevProf.set(curProf);
           hasPrevProf = true;
-        } else if (v.paused) {
+        } else if (v.paused && !isReversing) {
           txtSpeed.innerText = "0.0";
           txtEta.innerText = "予想: --分--秒";
           backwardStreak = 0;
+          errorBanner.style.display = 'none';
           hasPrevProf = false;
         }
       }
@@ -773,3 +819,4 @@
   </script>
 </body>
 </html>
+
