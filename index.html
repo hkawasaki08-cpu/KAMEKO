@@ -82,6 +82,7 @@
     .card-lbl { font-size: 9px; color: #aaa; }
     .card-val { font-size: 19px; font-weight: bold; font-variant-numeric: tabular-nums; }
     .card-unit { font-size: 10px; color: #888; }
+    .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 1px; }
 
     #mode-bar {
       position: absolute; top: 62px; left: 6px; right: 6px;
@@ -173,6 +174,7 @@
       <div class="card" style="border-color: #38bdf8;">
         <div class="card-lbl">目標残 (目標: <span id="txt-target-val">31</span>m)</div>
         <div><span id="txt-remain" class="card-val" style="color: #38bdf8;">31.00</span><span class="card-unit">m</span></div>
+        <div class="card-sub" id="txt-eta">予想: --分--秒</div>
       </div>
       <div class="card">
         <div class="card-lbl">速度 (平均)</div>
@@ -249,7 +251,7 @@
     var lastProcessTime = 0;
     var lastErrorTime = 0;
 
-    // 固定バッファ（メモリ枯渇対策）
+    // 固定バッファ（Safariクラッシュ完全対策）
     var PW = 160;
     var PH = 32;
     var curProf = new Float32Array(PW);
@@ -268,6 +270,7 @@
     var txtRemain = document.getElementById('txt-remain');
     var txtTargetVal = document.getElementById('txt-target-val');
     var txtSpeed = document.getElementById('txt-speed');
+    var txtEta = document.getElementById('txt-eta');
     var vBar = document.getElementById('v-bar');
     var vTime = document.getElementById('v-time');
     var bPause = document.getElementById('b-pause');
@@ -442,6 +445,7 @@
         bPause.innerText = '測定再開 ▶';
         vbPlay.innerText = '再生 ▶';
         txtSpeed.innerText = "0.0";
+        txtEta.innerText = "予想: --分--秒";
       } else {
         bPause.className = 'orange';
         bPause.innerText = '一時停止 ⏸';
@@ -461,6 +465,7 @@
       speedSamples = [];
       updateDistUI();
       txtSpeed.innerText = "0.0";
+      txtEta.innerText = "予想: --分--秒";
 
       if (operationMode === 'AUTO') {
         autoState = 'WAIT_HEAD_INSIDE';
@@ -490,15 +495,37 @@
       }
     });
 
+    // UI更新（超過時「+」表示 ＆ 到達予想時間ETA計算）
     function updateDistUI() {
       txtDist.innerText = totalDist.toFixed(2);
       var rem = targetDist - totalDist;
       if (rem < 0) {
         txtRemain.innerText = '+' + Math.abs(rem).toFixed(2);
         txtRemain.style.color = '#ef4444';
+        txtEta.innerText = "予想: 到達済";
+        txtEta.style.color = '#ef4444';
       } else {
         txtRemain.innerText = rem.toFixed(2);
         txtRemain.style.color = '#38bdf8';
+        updateEtaDisplay(rem);
+      }
+    }
+
+    function updateEtaDisplay(rem) {
+      if (rem <= 0) {
+        txtEta.innerText = "予想: 到達済";
+        txtEta.style.color = '#ef4444';
+        return;
+      }
+      if (currentSpeed >= 0.5) {
+        var secTotal = Math.round((rem / currentSpeed) * 60.0);
+        var m = Math.floor(secTotal / 60);
+        var s = secTotal % 60;
+        txtEta.innerText = "予想: " + m + "分" + (s < 10 ? "0" : "") + s + "秒";
+        txtEta.style.color = "#38bdf8";
+      } else {
+        txtEta.innerText = "予想: --分--秒";
+        txtEta.style.color = "#94a3b8";
       }
     }
 
@@ -573,14 +600,13 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 解析ループ（Safari負荷軽減＆確実な積算）
+    // 解析ループ（メモリ負荷極小化・約30FPSスロットリング）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
 
         if (v.readyState >= 2 && v.videoWidth > 0 && !v.paused) {
-          // 動画が動いていれば自動で測定モードON
           isPaused = false;
 
           var vw = v.videoWidth;
@@ -710,6 +736,7 @@
                 currentSpeed = 0.0;
               }
               txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
+              updateDistUI();
               lastSpeedTime = now;
             }
           }
@@ -718,6 +745,7 @@
           hasPrevProf = true;
         } else if (v.paused) {
           txtSpeed.innerText = "0.0";
+          txtEta.innerText = "予想: --分--秒";
           hasPrevProf = false;
         }
       }
