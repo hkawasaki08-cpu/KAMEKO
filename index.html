@@ -11,20 +11,18 @@
       height: 100%;
       background: #000;
       color: #fff;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       overflow: hidden;
       display: flex;
       flex-direction: column;
     }
     header {
-      background: #111;
+      background: #18181b;
       padding: 6px 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid #333;
-      flex-shrink: 0;
-      z-index: 30;
     }
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
     #fps { font-size: 11px; color: #aaa; }
@@ -35,6 +33,7 @@
       width: 100%;
       background: #111;
       overflow: hidden;
+      touch-action: none; /* ドラッグ操作を可能に */
     }
     video {
       position: absolute;
@@ -42,38 +41,55 @@
       width: 100%;
       height: 100%;
       object-fit: cover;
+      pointer-events: none;
     }
 
-    /* ケーブル測定枠 */
+    /* 移動式ケーブル測定枠 */
     #target-box {
       position: absolute;
-      top: 55%;
+      top: 40%;
       left: 4%;
       width: 92%;
       height: 90px;
       border: 2px solid #22c55e;
       border-radius: 4px;
       box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
-      z-index: 10;
-      pointer-events: none;
+      z-index: 15;
       display: flex;
+      justify-content: space-between;
       align-items: flex-start;
-      padding: 4px;
+      padding: 4px 6px;
+      background: rgba(34, 197, 94, 0.05);
+      cursor: grab;
     }
+    #target-box:active { cursor: grabbing; border-color: #38bdf8; box-shadow: 0 0 12px rgba(56, 189, 248, 0.6); }
     .box-tag {
       font-size: 10px;
       color: #22c55e;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(0,0,0,0.7);
       padding: 2px 6px;
-      border-radius: 2px;
+      border-radius: 3px;
+      pointer-events: none;
+    }
+    .box-controls {
+      display: flex;
+      gap: 4px;
+      pointer-events: auto;
+    }
+    .box-btn {
+      background: rgba(0,0,0,0.75);
+      border: 1px solid #22c55e;
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      cursor: pointer;
     }
 
     /* ダッシュボード */
     #dash {
       position: absolute;
-      top: 8px;
-      left: 6px;
-      right: 6px;
+      top: 6px; left: 6px; right: 6px;
       z-index: 20;
       display: flex;
       gap: 6px;
@@ -82,30 +98,28 @@
       flex: 1;
       background: rgba(0, 0, 0, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 8px;
-      padding: 6px 4px;
+      border-radius: 6px;
+      padding: 6px 2px;
       text-align: center;
     }
     .card-lbl { font-size: 9px; color: #aaa; }
     .card-val { font-size: 20px; font-weight: bold; }
-    .card-unit { font-size: 10px; color: #888; margin-left: 1px; }
+    .card-unit { font-size: 10px; color: #888; }
 
-    /* モード切替 */
+    /* モード切替 & 自動追従切替 */
     #scale-selector {
       position: absolute;
-      top: 68px;
-      left: 8px;
-      right: 8px;
+      top: 66px; left: 6px; right: 6px;
       display: flex;
       gap: 6px;
       z-index: 20;
     }
     .tab-btn {
       flex: 1;
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.9);
       border: 1px solid #475569;
       color: #94a3b8;
-      padding: 5px 0;
+      padding: 6px 0;
       border-radius: 6px;
       font-size: 11px;
       cursor: pointer;
@@ -115,454 +129,4 @@
       background: #0284c7;
       border-color: #38bdf8;
       color: #fff;
-      font-weight: bold;
-    }
-
-    /* 動画コントローラー */
-    #v-bar {
-      position: absolute;
-      bottom: 8px;
-      left: 8px;
-      right: 8px;
-      background: rgba(15, 23, 42, 0.94);
-      border: 1px solid #38bdf8;
-      border-radius: 8px;
-      padding: 6px 8px;
-      z-index: 25;
-      display: none;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .v-row { display: flex; gap: 4px; align-items: center; }
-    .v-btn {
-      flex: 1;
-      background: #1e293b;
-      color: #fff;
-      border: 1px solid #475569;
-      padding: 5px 0;
-      border-radius: 4px;
-      font-size: 11px;
-      text-align: center;
-      cursor: pointer;
-    }
-    .speed-btn {
-      flex: 1;
-      background: #0f172a;
-      color: #94a3b8;
-      border: 1px solid #334155;
-      padding: 3px 0;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: bold;
-      text-align: center;
-      cursor: pointer;
-    }
-    .speed-btn.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
-
-    /* 下部フッター：Safariのアドレスバーに絶対に隠れないよう調整 */
-    footer {
-      background: #18181b;
-      padding: 8px 8px calc(24px + env(safe-area-inset-bottom, 20px));
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      border-top: 1px solid #333;
-      flex-shrink: 0;
-      z-index: 40;
-    }
-    .btn-row { display: flex; gap: 6px; }
-    button, label.btn {
-      flex: 1;
-      background: #2a2a2a;
-      color: #fff;
-      border: 1px solid #444;
-      padding: 10px 0;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 500;
-      text-align: center;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    button.green { background: #16a34a; border-color: #15803d; font-weight: bold; }
-    button.orange { background: #d97706; border-color: #b45309; }
-    button.mic-on { background: #b91c1c; border-color: #991b1b; }
-    input[type="file"] { display: none; }
-  </style>
-</head>
-<body>
-
-  <header>
-    <div class="title">(仮称)カメラ式ケーブル距離計</div>
-    <div id="fps">0 FPS</div>
-  </header>
-
-  <div id="stage">
-    <video id="v" playsinline webkit-playsinline muted autoplay loop></video>
-    <canvas id="c-proc" style="display:none;"></canvas>
-
-    <!-- ケーブル測定枠 -->
-    <div id="target-box">
-      <span class="box-tag">🎯 ケーブル測定枠</span>
-    </div>
-
-    <!-- ダッシュボード -->
-    <div id="dash">
-      <div class="card">
-        <div class="card-lbl">延線距離</div>
-        <div><span id="txt-dist" class="card-val">0.00</span><span class="card-unit">m</span></div>
-      </div>
-      <div class="card" id="card-target" style="border-color: #38bdf8;">
-        <div class="card-lbl">目標残 (目標: <span id="txt-target-val">31</span>m)</div>
-        <div><span id="txt-remain" class="card-val" style="color: #38bdf8;">31.00</span><span class="card-unit">m</span></div>
-      </div>
-      <div class="card">
-        <div class="card-lbl">速度 (平均)</div>
-        <div><span id="txt-speed" class="card-val">0.0</span><span class="card-unit">m/分</span></div>
-      </div>
-    </div>
-
-    <!-- モード切替 -->
-    <div id="scale-selector">
-      <button class="tab-btn active" id="tab-close">近接 (約40cm)</button>
-      <button class="tab-btn" id="tab-wide">引き (約80cm〜1m)</button>
-    </div>
-
-    <!-- 動画操作バー -->
-    <div id="v-bar">
-      <div class="v-row" style="margin-bottom: 2px;">
-        <span style="font-size: 10px; color: #38bdf8; min-width: 48px; font-weight: bold;">速度:</span>
-        <button class="speed-btn" data-speed="0.25">0.25x</button>
-        <button class="speed-btn" data-speed="0.5">0.5x</button>
-        <button class="speed-btn active" data-speed="1.0">1.0x</button>
-        <button class="speed-btn" data-speed="1.5">1.5x</button>
-        <button class="speed-btn" data-speed="2.0">2.0x</button>
-      </div>
-      <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8;">
-        <span>🎬 コントローラー</span>
-        <span id="v-time">0.0s</span>
-      </div>
-      <div class="v-row">
-        <button class="v-btn" id="vb-b1">-1秒</button>
-        <button class="v-btn" id="vb-bstep">◀ コマ戻</button>
-        <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
-        <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
-        <button class="v-btn" id="vb-f1">+1秒</button>
-      </div>
-    </div>
-  </div>
-
-  <footer>
-    <div class="btn-row">
-      <button id="b-mic" style="background:#3b82f6;">🎤 音声認識 ON</button>
-      <button id="b-set-target">目標mセット</button>
-      <button id="b-m01">-0.1m</button>
-      <button id="b-p01">+0.1m</button>
-      <button id="b-zero" style="color:#f87171;">0mリセット</button>
-    </div>
-    <div class="btn-row">
-      <button id="b-pause" class="orange">一時停止 ⏸</button>
-      <button id="b-cam" class="green">カメラ起動</button>
-      <label class="btn" for="f-video">動画読込</label>
-      <input type="file" id="f-video" accept="video/*">
-    </div>
-  </footer>
-
-  <script>
-    var scaleFactor = 2.5;
-    var totalDist = 0.0;
-    var targetDist = 31.0;
-    var isRunning = false;
-    var isPaused = false;
-    var currentPlaybackRate = 1.0;
-
-    var announcedMarks = {};
-    var speedSamples = [];
-    var lastSpeedTime = performance.now();
-    var currentSpeed = 0.0;
-    var lastLoopTime = performance.now();
-    var frameCount = 0;
-    var lastFpsTime = performance.now();
-    var prevProfile = null;
-
-    var v = document.getElementById('v');
-    var cProc = document.getElementById('c-proc');
-    var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
-
-    var txtDist = document.getElementById('txt-dist');
-    var txtRemain = document.getElementById('txt-remain');
-    var txtTargetVal = document.getElementById('txt-target-val');
-    var txtSpeed = document.getElementById('txt-speed');
-    var txtFps = document.getElementById('fps');
-    var vBar = document.getElementById('v-bar');
-    var vTime = document.getElementById('v-time');
-    var bPause = document.getElementById('b-pause');
-
-    function speak(text) {
-      if (!window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
-      var uttr = new SpeechSynthesisUtterance(text);
-      uttr.lang = 'ja-JP';
-      uttr.rate = 1.15;
-      window.speechSynthesis.speak(uttr);
-    }
-
-    function checkDistanceAnnouncements(currentD) {
-      var diff = targetDist - currentD;
-      if (diff > 10.5) {
-        var step5 = Math.floor(currentD / 5.0) * 5;
-        if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
-          announcedMarks['fwd_' + step5] = true;
-          speak(step5 + 'メートル');
-          return;
-        }
-      }
-      for (var m = 10; m >= 1; m--) {
-        if (diff <= m && !announcedMarks['rem_' + m]) {
-          announcedMarks['rem_' + m] = true;
-          speak(m + 'メートル');
-          return;
-        }
-      }
-      if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
-        announcedMarks['zero'] = true;
-        speak('ゼロ、到達しました');
-        return;
-      }
-      if (diff < 0) {
-        var overM = Math.floor(Math.abs(diff));
-        if (overM >= 1 && overM <= 15 && !announcedMarks['over_' + overM]) {
-          announcedMarks['over_' + overM] = true;
-          speak('プラス ' + overM + 'メートル');
-        }
-      }
-    }
-
-    // 音声認識
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var recognition = null;
-    var isMicListening = false;
-    var bMic = document.getElementById('b-mic');
-
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
-      recognition.continuous = true;
-      recognition.onresult = function(event) {
-        var last = event.results.length - 1;
-        var cmd = event.results[last][0].transcript.trim().replace(/\s+/g, '');
-        if (cmd.includes('スタート') || cmd.includes('開始')) {
-          isPaused = false; bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸'; prevProfile = null;
-          speak('スタートしました');
-        } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
-          isPaused = true; bPause.className = 'green'; bPause.innerText = '測定再開 ▶'; txtSpeed.innerText = "0.0";
-          speak('ストップしました');
-        } else if (cmd.includes('リセット')) {
-          totalDist = 0.0; announcedMarks = {}; updateDistUI();
-          speak('ゼロリセットしました');
-        }
-      };
-    }
-
-    bMic.addEventListener('click', function() {
-      if (!SpeechRecognition) { alert('音声認識非対応'); return; }
-      isMicListening = !isMicListening;
-      if (isMicListening) {
-        try {
-          recognition.start();
-          bMic.className = 'mic-on';
-          bMic.innerText = '🎤 待受中';
-          speak('音声操作を開始します');
-        } catch(e) {}
-      } else {
-        recognition.stop();
-        bMic.className = '';
-        bMic.innerText = '🎤 音声認識 ON';
-        speak('音声操作を終了しました');
-      }
-    });
-
-    document.getElementById('b-set-target').addEventListener('click', function() {
-      var val = window.prompt("目標距離(m)を入力:", targetDist);
-      if (val !== null && !isNaN(parseFloat(val))) {
-        targetDist = Math.max(1, parseFloat(val));
-        txtTargetVal.innerText = targetDist;
-        announcedMarks = {};
-        updateDistUI();
-        speak(targetDist + 'メートルにセットしました');
-      }
-    });
-
-    function updateDistUI() {
-      txtDist.innerText = totalDist.toFixed(2);
-      var rem = targetDist - totalDist;
-      txtRemain.innerText = rem.toFixed(2);
-      txtRemain.style.color = (rem <= 0) ? '#ef4444' : '#38bdf8';
-    }
-
-    // 再生速度ボタン
-    var spdBtns = document.querySelectorAll('.speed-btn');
-    for (var i = 0; i < spdBtns.length; i++) {
-      spdBtns[i].addEventListener('click', function() {
-        for (var j = 0; j < spdBtns.length; j++) { spdBtns[j].classList.remove('active'); }
-        this.classList.add('active');
-        currentPlaybackRate = parseFloat(this.getAttribute('data-speed'));
-        v.playbackRate = currentPlaybackRate;
-      });
-    }
-
-    var tabClose = document.getElementById('tab-close');
-    var tabWide = document.getElementById('tab-wide');
-    tabClose.addEventListener('click', function() { scaleFactor = 2.5; tabClose.className = 'tab-btn active'; tabWide.className = 'tab-btn'; });
-    tabWide.addEventListener('click', function() { scaleFactor = 1.4; tabWide.className = 'tab-btn active'; tabClose.className = 'tab-btn'; });
-
-    // カメラ起動
-    document.getElementById('b-cam').addEventListener('click', function() {
-      vBar.style.display = 'none';
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
-        }).then(function(stream) {
-          v.srcObject = stream;
-          v.playbackRate = 1.0;
-          v.play();
-          isPaused = false;
-          bPause.innerText = '一時停止 ⏸';
-          startLoop();
-        }).catch(function(e) { alert("カメラ起動エラー: " + e.message); });
-      }
-    });
-
-    // 動画読込
-    document.getElementById('f-video').addEventListener('change', function(e) {
-      var file = e.target.files[0];
-      if (!file) return;
-      if (v.srcObject) { v.srcObject.getTracks().forEach(function(t) { t.stop(); }); v.srcObject = null; }
-      v.src = URL.createObjectURL(file);
-      vBar.style.display = 'flex';
-      v.playbackRate = currentPlaybackRate;
-      v.play();
-      isPaused = false;
-      bPause.innerText = '一時停止 ⏸';
-      startLoop();
-    });
-
-    var vbPlay = document.getElementById('vb-play');
-    vbPlay.addEventListener('click', function() {
-      if (v.paused) { v.play(); vbPlay.innerText = '一時停止 ⏸'; }
-      else { v.pause(); vbPlay.innerText = '再生 ▶'; }
-    });
-    document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
-    document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 1); });
-    document.getElementById('vb-bstep').addEventListener('click', function() { v.pause(); vbPlay.innerText = '再生 ▶'; v.currentTime = Math.max(0, v.currentTime - 0.033); });
-    document.getElementById('vb-fstep').addEventListener('click', function() { v.pause(); vbPlay.innerText = '再生 ▶'; v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
-    v.addEventListener('timeupdate', function() {
-      if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
-    });
-
-    document.getElementById('b-p01').addEventListener('click', function() { totalDist += 0.1; updateDistUI(); checkDistanceAnnouncements(totalDist); });
-    document.getElementById('b-m01').addEventListener('click', function() { totalDist = Math.max(0, totalDist - 0.1); updateDistUI(); });
-    document.getElementById('b-zero').addEventListener('click', function() {
-      totalDist = 0.0; announcedMarks = {}; speedSamples = []; updateDistUI(); txtSpeed.innerText = "0.0";
-    });
-
-    bPause.addEventListener('click', function() {
-      isPaused = !isPaused;
-      if (isPaused) {
-        bPause.className = 'green'; bPause.innerText = '測定再開 ▶'; txtSpeed.innerText = "0.0";
-      } else {
-        bPause.className = 'orange'; bPause.innerText = '一時停止 ⏸'; prevProfile = null;
-      }
-    });
-
-    function startLoop() {
-      if (isRunning) return;
-      isRunning = true;
-      requestAnimationFrame(mainLoop);
-    }
-
-    // 解析ループ
-    function mainLoop(now) {
-      if (v.readyState >= 2 && v.videoWidth > 0) {
-        var pw = 160;
-        var ph = 30;
-        if (cProc.width !== pw || cProc.height !== ph) { cProc.width = pw; cProc.height = ph; }
-
-        var vw = v.videoWidth;
-        var vh = v.videoHeight;
-
-        // ケーブル通過帯（下部55%のライン）を直接サンプリング
-        var sx = 0;
-        var sy = Math.floor(vh * 0.55);
-        var swSrc = vw;
-        var shSrc = Math.floor(vh * 0.20);
-
-        ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, pw, ph);
-        var imgData = ctxProc.getImageData(0, 0, pw, ph).data;
-
-        var curProf = new Float32Array(pw);
-        for (var x = 0; x < pw; x++) {
-          var sum = 0, cnt = 0;
-          for (var y = 0; y < ph; y++) {
-            var idx = (y * pw + x) * 4;
-            var g = 0.299 * imgData[idx] + 0.587 * imgData[idx+1] + 0.114 * imgData[idx+2];
-            if (g < 235) { sum += g; cnt++; }
-          }
-          curProf[x] = cnt > 0 ? sum / cnt : 0;
-        }
-
-        if (!isPaused && prevProfile) {
-          var maxS = 14, bestS = 0, minDiff = 999999;
-          for (var s = -maxS; s <= maxS; s++) {
-            var diff = 0;
-            for (var i = maxS; i < pw - maxS; i++) {
-              diff += Math.abs(prevProfile[i] - curProf[i + s]);
-            }
-            if (diff < minDiff) { minDiff = diff; bestS = s; }
-          }
-
-          var shiftPx = bestS * (swSrc / pw);
-          var deltaM = (shiftPx / scaleFactor) / 1000.0;
-          var dt = (now - lastLoopTime) / 1000.0;
-
-          if (Math.abs(deltaM) < 0.05 && Math.abs(deltaM) > 0.0006) {
-            totalDist += deltaM;
-            updateDistUI();
-            checkDistanceAnnouncements(totalDist);
-
-            if (dt > 0 && dt < 0.25) {
-              speedSamples.push(Math.max(0, (deltaM / dt) * 60.0));
-            }
-          } else {
-            speedSamples.push(0);
-          }
-
-          if (now - lastSpeedTime > 500) {
-            if (speedSamples.length > 0) {
-              var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
-              currentSpeed = currentSpeed * 0.3 + avg * 0.7;
-              speedSamples = [];
-            } else {
-              currentSpeed = 0.0;
-            }
-            txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
-            lastSpeedTime = now;
-          }
-        }
-        prevProfile = curProf;
-
-        frameCount++;
-        if (now - lastFpsTime > 1000) {
-          txtFps.innerText = frameCount + " FPS";
-          frameCount = 0;
-          lastFpsTime = now;
-        }
-      }
-
-      lastLoopTime = now;
-      requestAnimationFrame(mainLoop);
-    }
-  </script>
-</body>
-</html>
+      font
