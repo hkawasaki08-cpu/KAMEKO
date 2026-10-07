@@ -29,7 +29,6 @@
     h1 { font-size: 14px; font-weight: 600; color: #4ade80; }
     #fps-display { font-size: 12px; color: #aaa; font-variant-numeric: tabular-nums; }
 
-    /* カメラ全画面表示エリア */
     #viewport-container {
       position: relative;
       flex: 1;
@@ -37,7 +36,6 @@
       background: #000;
       overflow: hidden;
     }
-    /* 縦持ち・横持ちどちらでも画面いっぱいに表示 */
     video {
       position: absolute;
       top: 0; left: 0;
@@ -51,7 +49,6 @@
       width: 100%;
       height: 100%;
       z-index: 10;
-      pointer-events: none;
     }
 
     #dashboard {
@@ -146,7 +143,7 @@
       </div>
     </div>
 
-    <div id="status-msg">緑の枠にケーブルを合わせてください</div>
+    <div id="status-msg">緑枠にケーブルを合わせてください</div>
   </div>
 
   <footer>
@@ -165,7 +162,7 @@
   </footer>
 
   <script>
-    let scale_px_per_mm = 2.5; // 実寸換算目安
+    let scale_px_per_mm = 2.5;
     let totalDistanceMeters = 0.0;
     let isTracking = false;
     let isPaused = false;
@@ -189,20 +186,26 @@
     const pauseBtn = document.getElementById('pause-btn');
 
     let prevProfile = null;
+    let isBusyProcessing = false;
 
-    // カメラ起動
+    // カメラ起動（解像度を安全な値に最適化）
     document.getElementById('cam-btn').addEventListener('click', async () => {
       statusMsg.innerText = "カメラ起動中...";
       try {
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(t => t.stop());
+        }
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
             facingMode: { ideal: "environment" },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
         });
         video.srcObject = stream;
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
         await video.play();
         statusMsg.innerText = "緑枠にケーブルを合わせてください";
         isPaused = false;
@@ -214,11 +217,14 @@
       }
     });
 
-    // 動画読み込み
+    // 動画読込
     document.getElementById('video-input').addEventListener('change', async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      video.srcObject = null;
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+      }
       video.src = URL.createObjectURL(file);
       await video.play();
       isPaused = false;
@@ -283,7 +289,7 @@
       requestAnimationFrame(processLoop);
     }
 
-    // 解析ループ
+    // 解析ループ（iOSの描画フリーズ防止設計）
     function processLoop(timestamp) {
       if (!isTracking) return;
 
@@ -296,78 +302,81 @@
         overlayCanvas.height = ch;
       }
 
-      if (video.readyState >= 2 && video.videoWidth > 0) {
-        // 画面中央の「測定枠」サイズ定義（画面幅の80%、高さ80px）
-        const boxW = Math.floor(cw * 0.84);
-        const boxH = 80;
-        const boxX = Math.floor((cw - boxW) / 2);
-        const boxY = Math.floor((ch - boxH) / 2);
+      // 測定枠のサイズ（画面中央付近、やや細長いスリットにして負荷軽減）
+      const boxW = Math.floor(cw * 0.85);
+      const boxH = 70;
+      const boxX = Math.floor((cw - boxW) / 2);
+      const boxY = Math.floor((ch - boxH) / 2);
 
-        // 描画・切り出し用Canvas（枠内の映像だけを抽出）
-        const procW = 240; // 処理用スケーリング幅
-        const procH = 40;
-        if (procCanvas.width !== procW || procCanvas.height !== procH) {
-          procCanvas.width = procW;
-          procCanvas.height = procH;
-        }
+      // ガイド枠を描画（毎フレーム軽く描画）
+      drawOverlay(boxX, boxY, boxW, boxH);
 
-        // videoのcover表示に合わせた実座標マッピング
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        const scale = Math.max(cw / vw, ch / vh);
-        const renderedW = vw * scale;
-        const renderedH = vh * scale;
-        const offsetX = (cw - renderedW) / 2;
-        const offsetY = (ch - renderedH) / 2;
+      // 前のフレームの処理が終わっていない場合は解析をスキップ（動画フリーズを防止）
+      if (!isBusyProcessing && video.readyState >= 2 && video.videoWidth > 0 && !video.paused) {
+        isBusyProcessing = true;
 
-        // 枠内の映像を動画元のピクセル座標から正確に切り出し
-        const srcX = (boxX - offsetX) / scale;
-        const srcY = (boxY - offsetY) / scale;
-        const srcW = boxW / scale;
-        const srcH = boxH / scale;
-
-        procCtx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, procW, procH);
-        const frameData = procCtx.getImageData(0, 0, procW, procH);
-
-        // プロファイル計算（横方向移動トラッキング）
-        const currProfile = computeProfile(frameData.data, procW, procH);
-
-        if (!isPaused && prevProfile) {
-          const shift = computeShift(prevProfile, currProfile);
-          // 実ピクセル換算
-          const shiftPx = shift * (srcW / procW);
-          const deltaM = (shiftPx / scale_px_per_mm) / 1000.0;
-          const dt = (timestamp - lastTimestamp) / 1000.0;
-
-          // 異常値カット＆デッドゾーン
-          if (Math.abs(deltaM) < 0.04 && Math.abs(deltaM) > 0.0006) {
-            totalDistanceMeters += deltaM;
-            updateDistUI();
-
-            if (dt > 0 && dt < 0.2) {
-              const instSpeed = (deltaM / dt) * 60.0;
-              speedSamples.push(Math.max(0, instSpeed));
-            }
-          } else {
-            speedSamples.push(0);
+        try {
+          const procW = 160; // 負荷を抑えるため160pxで抽出
+          const procH = 20;
+          if (procCanvas.width !== procW || procCanvas.height !== procH) {
+            procCanvas.width = procW;
+            procCanvas.height = procH;
           }
 
-          if (timestamp - lastSpeedUpdate > 500) {
-            if (speedSamples.length > 0) {
-              const avg = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
-              smoothedSpeed = smoothedSpeed * 0.3 + avg * 0.7;
-              speedSamples = [];
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+          const scale = Math.max(cw / vw, ch / vh);
+          const renderedW = vw * scale;
+          const renderedH = vh * scale;
+          const offsetX = (cw - renderedW) / 2;
+          const offsetY = (ch - renderedH) / 2;
+
+          const srcX = Math.max(0, (boxX - offsetX) / scale);
+          const srcY = Math.max(0, (boxY - offsetY) / scale);
+          const srcW = Math.min(vw - srcX, boxW / scale);
+          const srcH = Math.min(vh - srcY, boxH / scale);
+
+          procCtx.drawImage(video, srcX, srcY, srcW, srcH, 0, 0, procW, procH);
+          const frameData = procCtx.getImageData(0, 0, procW, procH);
+
+          const currProfile = computeProfile(frameData.data, procW, procH);
+
+          if (!isPaused && prevProfile) {
+            const shift = computeShift(prevProfile, currProfile);
+            const shiftPx = shift * (srcW / procW);
+            const deltaM = (shiftPx / scale_px_per_mm) / 1000.0;
+            const dt = (timestamp - lastTimestamp) / 1000.0;
+
+            if (Math.abs(deltaM) < 0.04 && Math.abs(deltaM) > 0.0006) {
+              totalDistanceMeters += deltaM;
+              updateDistUI();
+
+              if (dt > 0 && dt < 0.25) {
+                const instSpeed = (deltaM / dt) * 60.0;
+                speedSamples.push(Math.max(0, instSpeed));
+              }
             } else {
-              smoothedSpeed = 0.0;
+              speedSamples.push(0);
             }
-            speedEl.innerText = Math.max(0, smoothedSpeed).toFixed(1);
-            lastSpeedUpdate = timestamp;
-          }
-        }
-        prevProfile = currProfile;
 
-        // 画面上に測定枠を正確に描画
-        drawOverlay(boxX, boxY, boxW, boxH);
+            if (timestamp - lastSpeedUpdate > 500) {
+              if (speedSamples.length > 0) {
+                const avg = speedSamples.reduce((a, b) => a + b, 0) / speedSamples.length;
+                smoothedSpeed = smoothedSpeed * 0.3 + avg * 0.7;
+                speedSamples = [];
+              } else {
+                smoothedSpeed = 0.0;
+              }
+              speedEl.innerText = Math.max(0, smoothedSpeed).toFixed(1);
+              lastSpeedUpdate = timestamp;
+            }
+          }
+          prevProfile = currProfile;
+        } catch (e) {
+          console.error(e);
+        } finally {
+          isBusyProcessing = false;
+        }
 
         frameCounter++;
         if (timestamp - lastFpsUpdate > 1000) {
@@ -388,7 +397,7 @@
         for (let y = 0; y < h; y++) {
           const idx = (y * w + x) * 4;
           const gray = 0.299 * data[idx] + 0.587 * data[idx+1] + 0.114 * data[idx+2];
-          if (gray < 235) { // 反射光カット
+          if (gray < 235) {
             sum += gray;
             count++;
           }
@@ -399,7 +408,7 @@
     }
 
     function computeShift(prev, curr) {
-      const maxSearch = 12;
+      const maxSearch = 10;
       let bestShift = 0;
       let minDiff = Infinity;
       for (let s = -maxSearch; s <= maxSearch; s++) {
@@ -420,26 +429,21 @@
       const ctx = overlayCtx;
       ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-      // 測定枠（緑実線）
       ctx.strokeStyle = isPaused ? '#94a3b8' : '#22c55e';
       ctx.lineWidth = 2;
       ctx.strokeRect(x, y, w, h);
 
-      // 四隅のターゲットコーナー
-      const corner = 12;
-      ctx.lineWidth = 4;
-      // 左上
-      ctx.beginPath(); ctx.moveTo(x, y + corner); ctx.lineTo(x, y); ctx.lineTo(x + corner, y); ctx.stroke();
-      // 右上
-      ctx.beginPath(); ctx.moveTo(x + w - corner, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + corner); ctx.stroke();
-      // 左下
-      ctx.beginPath(); ctx.moveTo(x, y + h - corner); ctx.lineTo(x, y + h); ctx.lineTo(x + corner, y + h); ctx.stroke();
-      // 右下
-      ctx.beginPath(); ctx.moveTo(x + w - corner, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - corner); ctx.stroke();
+      // コーナーマーク
+      const c = 10;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(x, y + c); ctx.lineTo(x, y); ctx.lineTo(x + c, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + w - c, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + c); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x, y + h - c); ctx.lineTo(x, y + h); ctx.lineTo(x + c, y + h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + w - c, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - c); ctx.stroke();
 
       ctx.fillStyle = isPaused ? '#94a3b8' : '#22c55e';
-      ctx.font = '12px sans-serif';
-      ctx.fillText(isPaused ? '⏸ 一時停止中' : '🎯 ケーブル測定エリア（この枠内にケーブルを水平に合わせてください）', x, y - 8);
+      ctx.font = '11px sans-serif';
+      ctx.fillText(isPaused ? '⏸ 一時停止中' : '🎯 ケーブルをこの枠に水平に合わせてください', x, y - 6);
     }
   </script>
 </body>
