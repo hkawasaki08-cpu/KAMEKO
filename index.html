@@ -251,6 +251,9 @@
     var lastProcessTime = 0;
     var lastErrorTime = 0;
 
+    // 逆送り連続検知用カウンター
+    var backwardStreak = 0;
+
     // 固定バッファ（Safariクラッシュ完全対策）
     var PW = 160;
     var PH = 32;
@@ -433,6 +436,7 @@
       setPauseState(false);
       hasPrevProf = false;
       announcedMarks = {};
+      backwardStreak = 0;
       updateDistUI();
       if (v.paused) v.play();
       speak('測定を開始します。測定を開始します。', 2);
@@ -446,12 +450,14 @@
         vbPlay.innerText = '再生 ▶';
         txtSpeed.innerText = "0.0";
         txtEta.innerText = "予想: --分--秒";
+        backwardStreak = 0;
       } else {
         bPause.className = 'orange';
         bPause.innerText = '一時停止 ⏸';
         vbPlay.innerText = '一時停止 ⏸';
         isManualTracking = true;
         hasPrevProf = false;
+        backwardStreak = 0;
       }
     }
 
@@ -463,6 +469,7 @@
       hasPrevProf = false;
       announcedMarks = {};
       speedSamples = [];
+      backwardStreak = 0;
       updateDistUI();
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
@@ -495,7 +502,6 @@
       }
     });
 
-    // UI更新（超過時「+」表示 ＆ 到達予想時間ETA計算）
     function updateDistUI() {
       txtDist.innerText = totalDist.toFixed(2);
       var rem = targetDist - totalDist;
@@ -600,7 +606,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 解析ループ（メモリ負荷極小化・約30FPSスロットリング）
+    // 解析ループ（Safariクラッシュ防止＆逆送り連続判定）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -702,12 +708,23 @@
 
             var shiftPx = bestS * (swSrc / PW);
 
-            if (shiftPx < -3.5) {
-              triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
+            // 逆送り検知：4フレーム連続マイナスの場合のみ警告
+            if (shiftPx < -2.0) {
+              backwardStreak++;
+              if (backwardStreak >= 4) {
+                triggerError('⚠️ 逆送り（巻き戻し）を検知', '逆送り検知');
+              }
+            } else {
+              backwardStreak = 0;
             }
 
             var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                            (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
+
+            // 単発のマイナスノイズによる距離戻りを防ぐ（連続逆送りの時のみ減算）
+            if (shiftPx < 0 && backwardStreak < 4) {
+              shiftPx = 0;
+            }
 
             if (canTrack && Math.abs(shiftPx) > 0.001) {
               var deltaM = (shiftPx / scaleFactor) / 1000.0;
@@ -746,6 +763,7 @@
         } else if (v.paused) {
           txtSpeed.innerText = "0.0";
           txtEta.innerText = "予想: --分--秒";
+          backwardStreak = 0;
           hasPrevProf = false;
         }
       }
