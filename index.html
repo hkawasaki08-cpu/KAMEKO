@@ -68,7 +68,7 @@
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
     }
-    .subbar-row { display: flex; gap: 6px; }
+    .subbar-row { display: flex; gap: 6px; align-items: stretch; }
     .mode-tab {
       flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
       padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
@@ -80,14 +80,29 @@
       flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
       padding: 6px 0; border-radius: 5px; font-size: 11px; font-weight: bold;
       cursor: pointer; text-align: center;
+      display: flex; align-items: center; justify-content: center;
     }
     .opt-btn.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; }
-    .opt-btn.dir-active { background: #0d9488; border-color: #2dd4bf; color: #fff; }
 
-    /* 動画・カメラ領域（高さをコンパクトに制限） */
+    /* 延線方向 矢印ボタン（大きく強調表示） */
+    #btn-dir {
+      flex: 0 0 68px; /* 幅を固定して大型化 */
+      font-size: 22px; /* 巨大矢印 */
+      font-weight: 900;
+      line-height: 1;
+      padding: 0;
+    }
+    #btn-dir.dir-fwd {
+      background: #0d9488; border-color: #2dd4bf; color: #fff;
+    }
+    #btn-dir.dir-rev {
+      background: #ea580c; border-color: #fb923c; color: #fff;
+    }
+
+    /* 動画・カメラ領域（コンパクト化） */
     #stage {
       position: relative;
-      height: 180px; /* 高さを低く抑えてボタン領域を確保 */
+      height: 180px;
       width: 100%;
       background: #000;
       overflow: hidden;
@@ -171,7 +186,7 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
-    /* メイン操作ボタン領域（大きく押しやすく拡張） */
+    /* メイン操作ボタン領域 */
     footer {
       background: #18181b;
       padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
@@ -218,7 +233,7 @@
     <div id="status-badge">手動待機中 (スタート前)</div>
   </header>
 
-  <!-- ダッシュボード表示（大きく上部に常時固定） -->
+  <!-- ダッシュボード表示 -->
   <div id="dash-container">
     <div id="dash">
       <div class="card">
@@ -237,20 +252,20 @@
     </div>
   </div>
 
-  <!-- 設定・方向切替バー -->
+  <!-- 設定・方向切替バー（巨大矢印アイコン仕様） -->
   <div id="control-subbar">
     <div class="subbar-row">
       <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
       <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
     </div>
     <div class="subbar-row">
-      <button class="opt-btn dir-active" id="btn-dir">延線方向: 左 ➡ 右</button>
+      <button class="opt-btn dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
       <button class="opt-btn" id="m-scale-close">近接 (2.5 px/mm)</button>
       <button class="opt-btn active" id="m-scale-wide">引き (1.4 px/mm)</button>
     </div>
   </div>
 
-  <!-- 動画・カメラ領域（高さを低くコンパクトに設定） -->
+  <!-- 動画・カメラ領域 -->
   <div id="stage">
     <video id="v" playsinline webkit-playsinline muted loop></video>
     <canvas id="c-proc" style="display:none;"></canvas>
@@ -316,7 +331,7 @@
     </div>
   </div>
 
-  <!-- メイン操作ボタン（大きく押しやすいレイアウト） -->
+  <!-- メイン操作ボタン -->
   <footer>
     <div class="btn-row">
       <button id="b-manual-start" class="purple">▶ 手動スタート (0m)</button>
@@ -335,7 +350,7 @@
   <script>
     var operationMode = 'MANUAL';
     var scaleFactor = 1.4;
-    var moveDirection = 1; // 1: 左 ➡ 右, -1: 左 ⬅ 右
+    var moveDirection = 1; // 1: ➡ (左から右), -1: ⬅ (右から左)
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
@@ -411,19 +426,17 @@
     var camErrorMsg = document.getElementById('cam-error-msg');
     var bCamRetry = document.getElementById('b-cam-retry');
 
-    // 方向切替（左 ➡ 右 ／ 左 ⬅ 右）
+    // 方向切替（大きな矢印「➡」／「⬅」のみ表示）
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
         moveDirection = -1;
-        btnDir.innerText = '延線方向: 左 ⬅ 右';
-        btnDir.style.background = '#ea580c';
-        btnDir.style.borderColor = '#fb923c';
+        btnDir.innerText = '⬅';
+        btnDir.className = 'opt-btn dir-rev';
         speak('左向き、右からの延線に設定しました', 1);
       } else {
         moveDirection = 1;
-        btnDir.innerText = '延線方向: 左 ➡ 右';
-        btnDir.style.background = '#0d9488';
-        btnDir.style.borderColor = '#2dd4bf';
+        btnDir.innerText = '➡';
+        btnDir.className = 'opt-btn dir-fwd';
         speak('右向き、左からの延線に設定しました', 1);
       }
       backwardStreak = 0;
@@ -786,7 +799,6 @@
       }
     });
 
-    // 逆再生改善
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
