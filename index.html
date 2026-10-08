@@ -190,6 +190,7 @@
       font-variant-numeric: tabular-nums; line-height: 1;
     }
 
+    /* フッター：上下ボタンの幅を完全一致（3列同期グリッド） */
     footer {
       background: #18181b;
       padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 2px));
@@ -203,14 +204,15 @@
     
     .btn-row-top {
       display: flex;
-      gap: 6px;
-      align-items: center;
+      gap: 5px;
+      align-items: stretch;
     }
 
     .btn-row-bottom {
       display: flex;
       gap: 5px;
       height: 36px;
+      align-items: stretch;
     }
     
     button, label.btn {
@@ -227,40 +229,46 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
+    /* 【上下の幅を完全一致】
+       左カラム: 幅68px（手動スタート ⇄ 0mリセット）
+       中央カラム: 伸縮（測定開始 ⇄ 目標m）
+       右カラム: 幅68px（音声 ⇄ 動画）
+    */
+    .col-left {
+      flex: 0 0 74px !important;
+      padding: 0 !important;
+    }
+    .col-center {
+      flex: 1 !important;
+    }
+    .col-right {
+      flex: 0 0 68px !important;
+      padding: 0 !important;
+    }
+
+    #b-manual-start {
+      min-height: 58px;
+      font-size: 10px;
+      line-height: 1.2;
+    }
     #b-pause {
-      flex: 1.8;
-      min-height: 64px;
+      min-height: 58px;
       font-size: 16px;
       font-weight: 900;
       box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
     }
-    #b-manual-start {
-      flex: 1;
-      min-height: 64px;
-      font-size: 11px;
-      line-height: 1.2;
-    }
-    /* 【幅統一】音声ボタン（固定幅 68px） */
     #b-mic {
-      flex: 0 0 68px;
-      min-height: 64px;
+      min-height: 58px;
       font-size: 11px;
       flex-direction: column;
       gap: 2px;
-      padding: 0;
     }
 
-    .btn-row-bottom button {
-      flex: 1;
+    .btn-row-bottom button,
+    .btn-row-bottom label.btn {
       font-size: 12px;
       height: 36px;
-    }
-    /* 【幅統一】動画ボタン（音声ボタンと同じ 68px 固定） */
-    #btn-video-label {
-      flex: 0 0 68px;
-      font-size: 12px;
-      height: 36px;
-      padding: 0;
+      min-height: 36px;
     }
   </style>
 </head>
@@ -336,16 +344,17 @@
   </div>
 
   <footer>
+    <!-- 上段：左(手動スタート) - 中央(測定開始) - 右(音声) -->
     <div class="btn-row-top">
-      <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート<br>(0m)</button>
-      <button id="b-pause" class="green">測定開始 ▶</button>
-      <button id="b-mic" style="background:#2563eb;">🎤<br>音声</button>
+      <button id="b-manual-start" class="purple col-left" style="display:none;">▶ 手動<br>スタート</button>
+      <button id="b-pause" class="green col-center">測定開始 ▶</button>
+      <button id="b-mic" class="col-right" style="background:#2563eb;">🎤<br>音声</button>
     </div>
+    <!-- 下段：左(0mリセット) - 中央(目標m) - 右(動画) -->
     <div class="btn-row-bottom">
-      <button id="b-set-target" style="background:#334155;">目標m</button>
-      <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
-      <!-- 名称を「動画」に変更し、音声ボタンと同じ幅に統一 -->
-      <label class="btn" id="btn-video-label" for="f-video" style="background:#1e293b; border-color:#475569;">動画</label>
+      <button id="b-zero" class="col-left" style="background:#334155; color:#f87171;">0mリセット</button>
+      <button id="b-set-target" class="col-center" style="background:#334155;">目標m</button>
+      <label class="btn col-right" id="btn-video-label" for="f-video" style="background:#1e293b; border-color:#475569;">動画</label>
       <input type="file" id="f-video" accept="video/*">
     </div>
   </footer>
@@ -631,7 +640,7 @@
       isPaused = paused;
       if (isPaused) {
         stopReverse();
-        bPause.className = 'green';
+        bPause.className = 'green col-center';
         bPause.innerText = '測定開始 ▶';
         vbPlay.innerText = '再生 ▶';
         txtSpeed.innerText = "0.0";
@@ -640,7 +649,7 @@
         errorBanner.style.display = 'none';
         if (!v.paused) v.pause();
       } else {
-        bPause.className = 'orange';
+        bPause.className = 'orange col-center';
         bPause.innerText = '一時停止 ⏸';
         vbPlay.innerText = '一時停止 ⏸';
         hasPrevProf = false;
