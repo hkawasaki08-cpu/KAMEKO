@@ -83,6 +83,7 @@
       justify-content: center;
       min-height: 42px;
     }
+    #btn-dir.dir-auto { background: #334155; border: 1.5px solid #64748b; color: #38bdf8; }
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
@@ -190,7 +191,6 @@
       font-variant-numeric: tabular-nums; line-height: 1;
     }
 
-    /* フッター：上下ボタンの幅を完全一致（3列同期グリッド） */
     footer {
       background: #18181b;
       padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 2px));
@@ -229,11 +229,6 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 【上下の幅を完全一致】
-       左カラム: 幅68px（手動スタート ⇄ 0mリセット）
-       中央カラム: 伸縮（測定開始 ⇄ 目標m）
-       右カラム: 幅68px（音声 ⇄ 動画）
-    */
     .col-left {
       flex: 0 0 74px !important;
       padding: 0 !important;
@@ -298,7 +293,7 @@
   </div>
 
   <div id="control-subbar">
-    <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
+    <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
     <button class="mode-tab" id="tab-manual">✋ 手動</button>
     <button class="mode-tab active" id="tab-auto">🎯 自動</button>
   </div>
@@ -344,13 +339,11 @@
   </div>
 
   <footer>
-    <!-- 上段：左(手動スタート) - 中央(測定開始) - 右(音声) -->
     <div class="btn-row-top">
       <button id="b-manual-start" class="purple col-left" style="display:none;">▶ 手動<br>スタート</button>
       <button id="b-pause" class="green col-center">測定開始 ▶</button>
       <button id="b-mic" class="col-right" style="background:#2563eb;">🎤<br>音声</button>
     </div>
-    <!-- 下段：左(0mリセット) - 中央(目標m) - 右(動画) -->
     <div class="btn-row-bottom">
       <button id="b-zero" class="col-left" style="background:#334155; color:#f87171;">0mリセット</button>
       <button id="b-set-target" class="col-center" style="background:#334155;">目標m</button>
@@ -362,7 +355,11 @@
   <script>
     var operationMode = 'AUTO';
     var scaleFactor = 2.675;
-    var moveDirection = 1;
+
+    // 方向自動判別フラグ（0: 未確定自動判定中, 1: 右向き確定, -1: 左向き確定）
+    var moveDirection = 0;
+    var autoDirAccumPx = 0.0; // 初動ベクトル積算用
+
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
@@ -429,22 +426,33 @@
     var bSpdUp = document.getElementById('b-spd-up');
     var txtSpdVal = document.getElementById('txt-spd-val');
 
+    // 方向ボタントグル（手動上書き）
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
-        moveDirection = -1;
+        setDirection(-1, true);
+      } else {
+        setDirection(1, true);
+      }
+    });
+
+    function setDirection(dir, isManual) {
+      moveDirection = dir;
+      if (moveDirection === 1) {
+        btnDir.innerText = '➡';
+        btnDir.className = 'dir-fwd';
+        speak('右向きに設定しました', 1);
+      } else if (moveDirection === -1) {
         btnDir.innerText = '⬅';
         btnDir.className = 'dir-rev';
         speak('左向きに設定しました', 1);
       } else {
-        moveDirection = 1;
-        btnDir.innerText = '➡';
-        btnDir.className = 'dir-fwd';
-        speak('右向きに設定しました', 1);
+        btnDir.innerText = '🔄';
+        btnDir.className = 'dir-auto';
       }
       backwardStreak = 0;
       errorBanner.style.display = 'none';
       hasPrevProf = false;
-    });
+    }
 
     function speak(text, count) {
       if (!('speechSynthesis' in window)) return;
@@ -464,7 +472,6 @@
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
           announcedMarks['fwd_' + step5] = true;
           speak(step5 + 'メートル', 1);
-          return;
         }
       }
       for (var m = 10; m >= 1; m--) {
@@ -677,6 +684,12 @@
       updateDistUI();
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
+
+      // 方向自動判定をリセット
+      moveDirection = 0;
+      autoDirAccumPx = 0.0;
+      btnDir.innerText = '🔄';
+      btnDir.className = 'dir-auto';
 
       if (operationMode === 'AUTO') {
         autoState = 'WAIT_HEAD_INSIDE';
@@ -973,28 +986,48 @@
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
-            var shiftPx = (bestS * moveDirection) * (swSrc / PW) / downScale;
+            var rawShiftPx = bestS * (swSrc / PW) / downScale;
 
-            if (shiftPx < -1.5) {
-              backwardStreak++;
-              if (backwardStreak >= 3) {
-                errorBanner.innerText = '🔄 バック中...';
-                errorBanner.style.display = 'block';
+            // 【方法A：初動ベクトルの自動判定ロジック】
+            if (moveDirection === 0) {
+              if (Math.abs(rawShiftPx) > 0.5) {
+                autoDirAccumPx += rawShiftPx;
+                if (autoDirAccumPx > 25.0) {
+                  // 右へ累計25px流れたら右向き確定
+                  setDirection(1, false);
+                } else if (autoDirAccumPx < -25.0) {
+                  // 左へ累計25px流れたら左向き確定
+                  setDirection(-1, false);
+                }
               }
-            } else {
-              backwardStreak = 0;
-              errorBanner.style.display = 'none';
             }
 
-            if (Math.abs(shiftPx) > 0.001) {
-              var deltaM = (shiftPx / scaleFactor) / 1000.0;
-              totalDist += deltaM;
-              totalPxSinceStart += shiftPx;
-              updateDistUI();
-              checkDistanceAnnouncements(totalDist);
+            // 方向が確定している場合のみ積算
+            var activeDir = (moveDirection !== 0) ? moveDirection : 1;
+            var shiftPx = rawShiftPx * activeDir;
 
-              if (dtSec > 0 && dtSec < 0.25) {
-                speedSamples.push((Math.abs(deltaM) / dtSec) * 60.0);
+            if (moveDirection !== 0) {
+              if (shiftPx < -1.5) {
+                backwardStreak++;
+                if (backwardStreak >= 3) {
+                  errorBanner.innerText = '🔄 バック中...';
+                  errorBanner.style.display = 'block';
+                }
+              } else {
+                backwardStreak = 0;
+                errorBanner.style.display = 'none';
+              }
+
+              if (Math.abs(shiftPx) > 0.001) {
+                var deltaM = (shiftPx / scaleFactor) / 1000.0;
+                totalDist += deltaM;
+                totalPxSinceStart += shiftPx;
+                updateDistUI();
+                checkDistanceAnnouncements(totalDist);
+
+                if (dtSec > 0 && dtSec < 0.25) {
+                  speedSamples.push((Math.abs(deltaM) / dtSec) * 60.0);
+                }
               }
             }
 
