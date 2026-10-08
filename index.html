@@ -9,7 +9,7 @@
     html, body {
       width: 100vw;
       height: 100dvh;
-      background: #000;
+      background: #09090b;
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
@@ -22,27 +22,77 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #333;
+      border-bottom: 1px solid #27272a;
       flex-shrink: 0;
       z-index: 30;
       height: 38px;
     }
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
     #status-badge {
-      font-size: 10px; padding: 2px 7px; border-radius: 4px;
+      font-size: 11px; padding: 3px 8px; border-radius: 4px;
       background: #475569; color: #fff; font-weight: bold;
     }
     #status-badge.active { background: #16a34a; }
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
+    /* ダッシュボード（上部に大きく常時固定） */
+    #dash-container {
+      background: #111827;
+      padding: 8px 8px 6px;
+      border-bottom: 1px solid #1f2937;
+      flex-shrink: 0;
+      z-index: 25;
+    }
+    #dash {
+      display: flex;
+      gap: 6px;
+    }
+    .card {
+      flex: 1; background: #000;
+      border: 1.5px solid #374151; border-radius: 8px;
+      padding: 6px 2px 4px; text-align: center;
+    }
+    .card-lbl { font-size: 11px; color: #9ca3af; font-weight: bold; }
+    .card-val { font-size: 28px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .card-unit { font-size: 12px; color: #9ca3af; margin-left: 2px; }
+    .card-sub { font-size: 11px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
+
+    /* オプション・設定バー */
+    #control-subbar {
+      background: #18181b;
+      padding: 5px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      border-bottom: 1px solid #27272a;
+      flex-shrink: 0;
+    }
+    .subbar-row { display: flex; gap: 6px; }
+    .mode-tab {
+      flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
+      padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
+      cursor: pointer; text-align: center;
+    }
+    .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
+
+    .opt-btn {
+      flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
+      padding: 6px 0; border-radius: 5px; font-size: 11px; font-weight: bold;
+      cursor: pointer; text-align: center;
+    }
+    .opt-btn.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; }
+    .opt-btn.dir-active { background: #0d9488; border-color: #2dd4bf; color: #fff; }
+
+    /* 動画・カメラ領域（高さをコンパクトに制限） */
     #stage {
       position: relative;
-      flex: 1;
+      height: 180px; /* 高さを低く抑えてボタン領域を確保 */
       width: 100%;
-      background: #09090b;
+      background: #000;
       overflow: hidden;
-      min-height: 0;
+      flex-shrink: 0;
+      border-bottom: 2px solid #22c55e;
     }
     video {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -51,123 +101,100 @@
 
     #target-box {
       position: absolute;
-      top: 36%; left: 4%; width: 92%; height: 105px;
-      border: 2px solid #22c55e; border-radius: 4px;
-      box-shadow: 0 0 10px rgba(34, 197, 94, 0.4);
+      top: 15%; left: 4%; width: 92%; height: 70%;
+      border: 2px solid #22c55e; border-radius: 6px;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.5);
       z-index: 10; pointer-events: none;
-      display: flex; justify-content: space-between; padding: 4px;
+      display: flex; justify-content: space-between; padding: 4px 6px;
     }
     .box-tag {
-      font-size: 10px; color: #22c55e;
-      background: rgba(0,0,0,0.65); padding: 2px 5px; border-radius: 2px;
+      font-size: 11px; color: #22c55e; font-weight: bold;
+      background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 3px;
     }
 
-    /* 診断パネル ＆ 解析プレビュー */
-    #diag-panel {
-      position: absolute; top: calc(36% + 112px); left: 4%; right: 4%;
-      background: rgba(15, 23, 42, 0.92); border: 1px solid #3b82f6;
-      border-radius: 6px; padding: 6px; z-index: 20;
-      display: flex; gap: 8px; align-items: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
-    }
-    #diag-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-    #diag-msg { font-size: 11px; font-weight: bold; color: #4ade80; }
-    #diag-sub { font-size: 9px; color: #94a3b8; }
-    #diag-preview-wrap {
-      display: flex; flex-direction: column; align-items: center; gap: 2px;
-    }
-    #diag-canvas {
-      width: 110px; height: 26px; border: 1px solid #475569;
-      border-radius: 3px; background: #000; display: block;
-    }
-    .diag-lbl { font-size: 8px; color: #64748b; }
-
-    #error-banner {
-      position: absolute; top: 135px; left: 50%; transform: translateX(-50%);
-      background: rgba(59, 130, 246, 0.95); border: 1px solid #93c5fd;
-      color: #fff; padding: 5px 14px; border-radius: 20px;
-      font-size: 11px; font-weight: bold; z-index: 35;
-      display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
-    }
-
-    #dash {
-      position: absolute; top: 6px; left: 6px; right: 6px;
-      z-index: 20; display: flex; gap: 6px;
-    }
-    .card {
-      flex: 1; background: rgba(0, 0, 0, 0.88);
-      border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px;
-      padding: 4px 2px; text-align: center;
-    }
-    .card-lbl { font-size: 9px; color: #aaa; }
-    .card-val { font-size: 19px; font-weight: bold; font-variant-numeric: tabular-nums; }
-    .card-unit { font-size: 10px; color: #888; }
-    .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 1px; }
-
-    #mode-bar {
-      position: absolute; top: 62px; left: 6px; right: 6px;
-      display: flex; gap: 6px; z-index: 20;
-    }
-    .mode-tab {
-      flex: 1; background: rgba(15, 23, 42, 0.9);
-      border: 1px solid #475569; color: #94a3b8;
-      padding: 4px 0; border-radius: 5px; font-size: 10px;
-      cursor: pointer; text-align: center;
-    }
-    .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; font-weight: bold; }
-
-    /* 方向切替 ＆ スケール切替バー */
-    #option-bar {
-      position: absolute; top: 92px; left: 6px; right: 6px;
-      display: flex; gap: 6px; z-index: 20;
-    }
-    .opt-btn {
-      flex: 1; background: rgba(30, 41, 59, 0.9);
-      border: 1px solid #475569; color: #94a3b8;
-      padding: 3px 0; border-radius: 4px; font-size: 9px;
-      cursor: pointer; text-align: center;
-    }
-    .opt-btn.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; font-weight: bold; }
-    .opt-btn.dir-active { background: #0d9488; border-color: #2dd4bf; color: #fff; font-weight: bold; }
-
-    /* 動画コントローラー */
-    #v-bar {
-      position: absolute; bottom: 6px; left: 6px; right: 6px;
-      background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
-      border-radius: 6px; padding: 5px; z-index: 25;
-      display: none; flex-direction: column; gap: 3px;
-    }
-    .v-row { display: flex; gap: 4px; align-items: center; }
-    .v-btn {
-      flex: 1; background: #1e293b; color: #fff;
-      border: 1px solid #475569; padding: 5px 0; border-radius: 4px;
-      font-size: 10px; text-align: center; cursor: pointer;
-    }
-    .v-btn.active { background: #9333ea; border-color: #c084fc; font-weight: bold; }
-    .speed-btn {
-      flex: 1; background: #0f172a; color: #94a3b8;
-      border: 1px solid #334155; padding: 2px 0; border-radius: 4px;
-      font-size: 9px; font-weight: bold; text-align: center; cursor: pointer;
-    }
-    .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
-
-    /* 録画バー */
+    /* 録画操作バー */
     .rec-bar {
-      position: absolute; top: 122px; right: 6px;
+      position: absolute; top: 6px; right: 6px;
       display: flex; gap: 6px; align-items: center; z-index: 25;
     }
     .rec-btn {
       background: #b91c1c; color: #fff; border: 1px solid #ef4444;
-      padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;
+      padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold;
       cursor: pointer;
     }
     #rec-timer {
-      font-size: 10px; font-weight: bold; color: #ef4444;
-      background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px;
+      font-size: 11px; font-weight: bold; color: #ef4444;
+      background: rgba(0,0,0,0.8); padding: 3px 6px; border-radius: 4px;
       display: none;
     }
 
-    /* モーダル・スピナー */
+    /* 診断パネル */
+    #diag-panel {
+      position: absolute; bottom: 6px; left: 6px; right: 6px;
+      background: rgba(15, 23, 42, 0.94); border: 1px solid #3b82f6;
+      border-radius: 6px; padding: 4px 8px; z-index: 20;
+      display: flex; gap: 8px; align-items: center;
+    }
+    #diag-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+    #diag-msg { font-size: 11px; font-weight: bold; color: #4ade80; }
+    #diag-sub { font-size: 9px; color: #94a3b8; }
+    #diag-canvas {
+      width: 100px; height: 24px; border: 1px solid #475569;
+      border-radius: 3px; background: #000; display: block;
+    }
+
+    #error-banner {
+      position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(37, 99, 235, 0.95); border: 2px solid #93c5fd;
+      color: #fff; padding: 6px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: bold; z-index: 35;
+      display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+    }
+
+    /* 動画コントローラー（テスト用） */
+    #v-bar {
+      background: #0f172a; border-top: 1px solid #1e293b; border-bottom: 1px solid #1e293b;
+      padding: 5px 8px; display: none; flex-direction: column; gap: 4px;
+      flex-shrink: 0;
+    }
+    .v-row { display: flex; gap: 5px; align-items: center; }
+    .v-btn {
+      flex: 1; background: #1e293b; color: #fff;
+      border: 1px solid #475569; padding: 7px 0; border-radius: 5px;
+      font-size: 11px; font-weight: bold; text-align: center; cursor: pointer;
+    }
+    .v-btn.active { background: #9333ea; border-color: #c084fc; }
+    .speed-btn {
+      flex: 1; background: #1e293b; color: #94a3b8;
+      border: 1px solid #334155; padding: 4px 0; border-radius: 4px;
+      font-size: 10px; font-weight: bold; text-align: center; cursor: pointer;
+    }
+    .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+
+    /* メイン操作ボタン領域（大きく押しやすく拡張） */
+    footer {
+      background: #18181b;
+      padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
+      display: flex; flex-direction: column; gap: 7px;
+      border-top: 1px solid #27272a; flex: 1; justify-content: flex-end;
+      z-index: 40;
+    }
+    .btn-row { display: flex; gap: 7px; flex: 1; max-height: 52px; }
+    button, label.btn {
+      flex: 1; background: #27272a; color: #fff;
+      border: 1.5px solid #3f3f46; border-radius: 8px;
+      font-size: 13px; font-weight: bold; text-align: center;
+      cursor: pointer; touch-action: manipulation;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 44px;
+    }
+    button.green { background: #16a34a; border-color: #22c55e; font-size: 14px; }
+    button.orange { background: #d97706; border-color: #f59e0b; font-size: 14px; }
+    button.purple { background: #7c3aed; border-color: #a855f7; font-size: 14px; }
+    button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
+    input[type="file"] { display: none; }
+
+    /* スピナー / モーダル */
     .overlay-modal {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.75); display: flex; flex-direction: column;
@@ -175,33 +202,13 @@
     }
     .modal-box {
       background: #18181b; border: 1px solid #475569; border-radius: 8px;
-      padding: 16px; text-align: center; max-width: 80%;
+      padding: 18px; text-align: center; max-width: 80%;
     }
     .spinner {
-      width: 28px; height: 28px; border: 3px solid rgba(255, 255, 255, 0.3);
+      width: 32px; height: 32px; border: 3px solid rgba(255, 255, 255, 0.3);
       border-radius: 50%; border-top-color: #38bdf8; animation: spin 0.8s ease-in-out infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-
-    footer {
-      background: #18181b;
-      padding: 6px 8px calc(14px + env(safe-area-inset-bottom, 12px));
-      display: flex; flex-direction: column; gap: 5px;
-      border-top: 1px solid #333; flex-shrink: 0; z-index: 40;
-    }
-    .btn-row { display: flex; gap: 5px; }
-    button, label.btn {
-      flex: 1; background: #27272a; color: #fff;
-      border: 1px solid #3f3f46; padding: 9px 0; border-radius: 6px;
-      font-size: 11px; font-weight: 500; text-align: center;
-      cursor: pointer; touch-action: manipulation;
-      display: flex; justify-content: center; align-items: center;
-    }
-    button.green { background: #16a34a; border-color: #15803d; font-weight: bold; }
-    button.orange { background: #d97706; border-color: #b45309; }
-    button.purple { background: #7c3aed; border-color: #6d28d9; font-weight: bold; }
-    button.mic-on { background: #dc2626 !important; border-color: #b91c1c !important; font-weight: bold; }
-    input[type="file"] { display: none; }
   </style>
 </head>
 <body>
@@ -211,42 +218,14 @@
     <div id="status-badge">手動待機中 (スタート前)</div>
   </header>
 
-  <div id="stage">
-    <video id="v" playsinline webkit-playsinline muted loop></video>
-    <canvas id="c-proc" style="display:none;"></canvas>
-
-    <div id="target-box">
-      <span class="box-tag">🎯 測定枠</span>
-      <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード (テープ不要)</span>
-    </div>
-
-    <!-- 録画バー -->
-    <div class="rec-bar">
-      <button id="b-rec-start" class="rec-btn">🔴 録画 (最長15秒)</button>
-      <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止(保存)</button>
-      <span id="rec-timer">● REC 00s</span>
-    </div>
-
-    <!-- 診断＆エッジプレビューパネル -->
-    <div id="diag-panel">
-      <div id="diag-info">
-        <span id="diag-msg">🔍 カメラ待機中...</span>
-        <span id="diag-sub">カメラを起動すると光量・エッジを診断します</span>
-      </div>
-      <div id="diag-preview-wrap">
-        <canvas id="diag-canvas" width="160" height="32"></canvas>
-        <span class="diag-lbl">解析目線エッジ画</span>
-      </div>
-    </div>
-
-    <div id="error-banner">🔄 バック中...</div>
-
+  <!-- ダッシュボード表示（大きく上部に常時固定） -->
+  <div id="dash-container">
     <div id="dash">
       <div class="card">
         <div class="card-lbl">延線距離</div>
         <div><span id="txt-dist" class="card-val">0.00</span><span class="card-unit">m</span></div>
       </div>
-      <div class="card" style="border-color: #38bdf8;">
+      <div class="card" style="border-color: #0284c7;">
         <div class="card-lbl">目標残 (目標: <span id="txt-target-val">31</span>m)</div>
         <div><span id="txt-remain" class="card-val" style="color: #38bdf8;">31.00</span><span class="card-unit">m</span></div>
         <div class="card-sub" id="txt-eta">予想: --分--秒</div>
@@ -256,69 +235,100 @@
         <div><span id="txt-speed" class="card-val">0.0</span><span class="card-unit">m/分</span></div>
       </div>
     </div>
+  </div>
 
-    <div id="mode-bar">
-      <button class="mode-tab active" id="tab-manual">✋ 手動運用モード (テープ無)</button>
+  <!-- 設定・方向切替バー -->
+  <div id="control-subbar">
+    <div class="subbar-row">
+      <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
       <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
     </div>
-
-    <!-- 方向切替 ＆ スケール切替バー -->
-    <div id="option-bar">
+    <div class="subbar-row">
       <button class="opt-btn dir-active" id="btn-dir">延線方向: 左 ➡ 右</button>
       <button class="opt-btn" id="m-scale-close">近接 (2.5 px/mm)</button>
       <button class="opt-btn active" id="m-scale-wide">引き (1.4 px/mm)</button>
     </div>
+  </div>
 
-    <!-- 動画コントローラー -->
-    <div id="v-bar">
-      <div class="v-row">
-        <span style="font-size: 9px; color: #38bdf8; min-width: 40px; font-weight: bold;">速度:</span>
-        <button class="speed-btn" data-speed="0.25">0.25x</button>
-        <button class="speed-btn" data-speed="0.5">0.5x</button>
-        <button class="speed-btn active" data-speed="1.0">1.0x</button>
-        <button class="speed-btn" data-speed="1.5">1.5x</button>
-        <button class="speed-btn" data-speed="2.0">2.0x</button>
-      </div>
-      <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8;">
-        <span>🎬 動画コントローラー</span>
-        <span id="v-time">0.0s</span>
-      </div>
-      <div class="v-row">
-        <button class="v-btn" id="vb-b1">-1秒</button>
-        <button class="v-btn" id="vb-rev">◀ 逆再生</button>
-        <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
-        <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
-        <button class="v-btn" id="vb-f1">+1秒</button>
-      </div>
+  <!-- 動画・カメラ領域（高さを低くコンパクトに設定） -->
+  <div id="stage">
+    <video id="v" playsinline webkit-playsinline muted loop></video>
+    <canvas id="c-proc" style="display:none;"></canvas>
+
+    <div id="target-box">
+      <span class="box-tag">🎯 判定枠</span>
+      <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード</span>
     </div>
+
+    <!-- 録画バー -->
+    <div class="rec-bar">
+      <button id="b-rec-start" class="rec-btn">🔴 録画 (最長15秒)</button>
+      <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止(保存)</button>
+      <span id="rec-timer">● REC 00s</span>
+    </div>
+
+    <!-- 診断パネル -->
+    <div id="diag-panel">
+      <div id="diag-info">
+        <span id="diag-msg">🔍 カメラ待機中...</span>
+        <span id="diag-sub">カメラ起動で光量・エッジを診断</span>
+      </div>
+      <canvas id="diag-canvas" width="160" height="32"></canvas>
+    </div>
+
+    <div id="error-banner">🔄 バック中...</div>
 
     <!-- スピナー ＆ カメラエラーモーダル -->
     <div id="cam-spinner" style="display: none;" class="overlay-modal">
       <div class="spinner"></div>
-      <p style="margin-top: 8px; font-size: 12px; color: #fff;">カメラ初期化中...</p>
+      <p style="margin-top: 8px; font-size: 13px; color: #fff;">カメラ初期化中...</p>
     </div>
 
     <div id="cam-error-modal" style="display: none;" class="overlay-modal">
       <div class="modal-box">
         <p id="cam-error-msg" style="color: #ef4444; font-size: 13px; font-weight: bold;">カメラの起動に失敗しました</p>
         <p style="color: #ccc; font-size: 11px; margin: 6px 0 12px;">設定でカメラの使用を許可してください。</p>
-        <button id="b-cam-retry" style="background: #2563eb; color: #fff; padding: 6px 14px; border-radius: 4px; border: none; font-size: 12px; cursor: pointer;">再試行</button>
+        <button id="b-cam-retry" style="background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 5px; border: none; font-size: 13px; cursor: pointer;">再試行</button>
       </div>
     </div>
   </div>
 
+  <!-- 動画コントローラー（テスト用） -->
+  <div id="v-bar">
+    <div class="v-row">
+      <span style="font-size: 10px; color: #38bdf8; min-width: 40px; font-weight: bold;">速度:</span>
+      <button class="speed-btn" data-speed="0.25">0.25x</button>
+      <button class="speed-btn" data-speed="0.5">0.5x</button>
+      <button class="speed-btn active" data-speed="1.0">1.0x</button>
+      <button class="speed-btn" data-speed="1.5">1.5x</button>
+      <button class="speed-btn" data-speed="2.0">2.0x</button>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8;">
+      <span>🎬 動画コントローラー</span>
+      <span id="v-time">0.0s</span>
+    </div>
+    <div class="v-row">
+      <button class="v-btn" id="vb-b1">-1秒</button>
+      <button class="v-btn" id="vb-rev">◀ 逆再生</button>
+      <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
+      <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
+      <button class="v-btn" id="vb-f1">+1秒</button>
+    </div>
+  </div>
+
+  <!-- メイン操作ボタン（大きく押しやすいレイアウト） -->
   <footer>
     <div class="btn-row">
       <button id="b-manual-start" class="purple">▶ 手動スタート (0m)</button>
+      <button id="b-pause" class="orange">一時停止 ⏸</button>
       <button id="b-mic" style="background:#2563eb;">🎤 音声操作 ON</button>
-      <button id="b-set-target">目標mセット</button>
-      <button id="b-zero" style="color:#f87171;">0mリセット</button>
     </div>
     <div class="btn-row">
-      <button id="b-pause" class="orange">一時停止 ⏸</button>
       <button id="b-cam" class="green">カメラ起動</button>
-      <label class="btn" for="f-video" style="background:#2563eb; font-weight:bold;">動画読込</label>
+      <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
       <input type="file" id="f-video" accept="video/*">
+      <button id="b-set-target" style="background:#334155;">目標m</button>
+      <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
     </div>
   </footer>
 
@@ -339,7 +349,7 @@
     var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
-    var whiteFrameCount = 0; // ヘッド連続検出カウンタ
+    var whiteFrameCount = 0;
 
     var announcedMarks = {};
     var speedSamples = [];
@@ -541,7 +551,7 @@
       tabAuto.className = 'mode-tab active';
       tabManual.className = 'mode-tab';
       bManualStart.style.display = 'none';
-      boxSubtag.innerText = 'ヘッド通過待ち (スタート前不感)';
+      boxSubtag.innerText = 'ヘッド通過待ち';
       resetAll();
       speak('自動テープ検知モードに切り替えました', 1);
     });
@@ -551,7 +561,7 @@
       tabManual.className = 'mode-tab active';
       tabAuto.className = 'mode-tab';
       bManualStart.style.display = 'flex';
-      boxSubtag.innerText = '手動モード (テープ不要)';
+      boxSubtag.innerText = '手動モード';
       resetAll();
       speak('手動運用モードです', 1);
     });
@@ -776,7 +786,7 @@
       }
     });
 
-    // 逆再生の改善（0秒時は末尾から自動巻き戻し、iOS向け安定化）
+    // 逆再生改善
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
@@ -836,23 +846,23 @@
       if (avgLum < 35) {
         diagMsg.innerText = "❌ 光量不足（暗すぎます）";
         diagMsg.style.color = "#ef4444";
-        diagSub.innerText = "照明・投光器でケーブルを照らしてください";
+        diagSub.innerText = "照明でケーブルを照らしてください";
       } else if (avgLum > 220) {
         diagMsg.innerText = "❌ 光量過多（白飛びしています）";
         diagMsg.style.color = "#ef4444";
-        diagSub.innerText = "強い直射日光・光源の角度を調整してください";
+        diagSub.innerText = "直射日光・光源の角度を調整してください";
       } else if (glareCount > (PW * PH * 0.08)) {
-        diagMsg.innerText = "⚠️ 照り返し過多（白光り・反射）";
+        diagMsg.innerText = "⚠️ 照り返し過多（反射）";
         diagMsg.style.color = "#facc15";
-        diagSub.innerText = "斜めから光を当てるか、カメラ角度を変えてください";
+        diagSub.innerText = "斜めから照らすか角度を変えてください";
       } else if (avgEdge < 1.8) {
-        diagMsg.innerText = "⚠️ コントラスト不足（特徴が薄い）";
+        diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）";
         diagMsg.style.color = "#facc15";
-        diagSub.innerText = "ケーブルの筋・印字が見えるようピント/距離を調整";
+        diagSub.innerText = "印字が見えるようピント/距離を調整";
       } else {
         diagMsg.innerText = "🟢 測定環境：良好（準備完了）";
         diagMsg.style.color = "#4ade80";
-        diagSub.innerText = "十分なエッジ特徴量を検知しています";
+        diagSub.innerText = "十分なエッジ特徴量を検知";
       }
 
       var dData = diagImgData.data;
@@ -871,7 +881,7 @@
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    // 解析ループ（実物ヘッド判定ロジック・方向連携最適化版）
+    // 解析ループ
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -906,7 +916,6 @@
           var glareCount = 0;
           var sumLumTotal = 0;
 
-          // 1. 輝度の列平均算出＆特徴量集計
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -915,10 +924,8 @@
               var g = imgData[idx+1];
               var b = imgData[idx+2];
 
-              // 実物写真の白テープ判定（高輝度かつ無彩色白）
               if (r > 195 && g > 195 && b > 190) whiteCountTotal++;
               if (r > 240 && g > 240 && b > 240) glareCount++;
-              // 黄色校正テープ判定
               if (r > 160 && g > 150 && b < 100 && (r + g - 2 * b) > 110) yellowCountTotal++;
 
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -928,7 +935,6 @@
             rawProf[x] = sumG / PH;
           }
 
-          // 2. 黒シース白文字印字＆凹凸強調の微分エッジ計算
           for (var x = 0; x < PW; x++) {
             if (x === 0) {
               curProf[x] = rawProf[1] - rawProf[0];
@@ -941,13 +947,12 @@
 
           runDiagnostics(imgData, sumLumTotal / (PW * PH), glareCount, now);
 
-          // 3. 実物ケーブルヘッド自動検知（白テープ後端の境界抜けで0m確定）
+          // 自動検知
           if (operationMode === 'AUTO') {
             var totalPixels = PW * PH;
             var isWhitePresent = whiteCountTotal > (totalPixels * 0.22);
             var isYellowPresent = yellowCountTotal > (totalPixels * 0.12);
 
-            // 進行方向側（進入端）の白判定（左➡右なら左側50px、左⬅右なら右側50px）
             var entryWhiteSum = 0;
             var entryWidth = 40;
             if (moveDirection === 1) {
@@ -960,7 +965,7 @@
             if (autoState === 'WAIT_HEAD_INSIDE') {
               if (isWhitePresent && isEntryWhite) {
                 whiteFrameCount++;
-                if (whiteFrameCount >= 3) { // 連続3フレームでヘッド進入確定
+                if (whiteFrameCount >= 3) {
                   autoState = 'WAIT_HEAD_TRAILING';
                   statusBadge.innerText = 'ヘッド通過中...';
                 }
@@ -968,7 +973,6 @@
                 whiteFrameCount = 0;
               }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              // 白テープが枠を抜けきった瞬間（急峻な暗転エッジ通過）
               if (!isWhitePresent && !isEntryWhite) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0;
@@ -1006,7 +1010,6 @@
             }
           }
 
-          // 相関トラッキング（スタート前は完全不感）
           var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
@@ -1020,7 +1023,6 @@
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
-            // 方向パラメータ（moveDirection）を反映した進行方向ピクセル量
             var shiftPx = (bestS * moveDirection) * (swSrc / PW);
 
             if (shiftPx < -1.5) {
@@ -1079,7 +1081,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // --- 録画モジュール（最長15秒・即時保存・メモリ即時解放） ---
+    // --- 録画モジュール ---
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
