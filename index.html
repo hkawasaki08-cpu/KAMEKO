@@ -37,7 +37,7 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* 【改修】カード全体の高さを大型化（min-height: 84px） */
+    /* カード全体の大型化（min-height: 84px） */
     #dash-container {
       background: #111827;
       padding: 6px 6px;
@@ -61,7 +61,7 @@
     .card-unit { font-size: 11px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* 【改修】手動・自動ボタンの高さを17pxに変更 */
+    /* 手動・自動ボタンの高さ: 17px */
     #control-subbar {
       background: #18181b;
       padding: 3px 6px;
@@ -92,8 +92,8 @@
       padding: 0;
     }
     #btn-dir.dir-auto { background: #334155; border: 1px solid #64748b; color: #38bdf8; }
-    #btn-dir.dir-fwd { background: #0d9488; border: 1px solid #2dd4bf; color: #fff; }
-    #btn-dir.dir-rev { background: #ea580c; border: 1px solid #fb923c; color: #fff; }
+    #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
+    #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
     #stage {
       position: relative;
@@ -141,6 +141,7 @@
       border-radius: 2px; background: #000; display: block;
     }
 
+    /* 録画バー */
     #rec-controls-bar {
       background: #18181b;
       padding: 4px 6px;
@@ -165,6 +166,7 @@
       display: none; white-space: nowrap;
     }
 
+    /* 動画コントローラー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
@@ -176,7 +178,7 @@
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
     
-    /* 【改修】再生ボタン等（コントローラー行）の高さを17pxに変更 */
+    /* 再生・シークボタン行の高さ: 17px */
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
       border: 1px solid #475569; padding: 0; border-radius: 4px;
@@ -295,7 +297,6 @@
     <div id="status-badge">待機中 (ヘッド待ち)</div>
   </header>
 
-  <!-- 【改修】大型化した距離表示ダッシュボード -->
   <div id="dash-container">
     <div id="dash">
       <div class="card">
@@ -314,7 +315,6 @@
     </div>
   </div>
 
-  <!-- 【改修】高さを17pxに変更したモード切替バー -->
   <div id="control-subbar">
     <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
     <button class="mode-tab" id="tab-manual">✋ 手動</button>
@@ -330,7 +330,7 @@
 
   <div id="diag-panel">
     <div id="diag-info">
-      <span id="diag-msg">🔍 待機中...</span>
+      <span id="diag-msg">🔍 カメラ起動中...</span>
       <span id="diag-sub">光量・エッジを診断</span>
     </div>
     <canvas id="diag-canvas" width="160" height="32"></canvas>
@@ -353,7 +353,6 @@
       <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
-    <!-- 【改修】高さを17pxに変更した再生・シーク行 -->
     <div class="v-row">
       <button class="v-btn" id="vb-b1">-0.1秒</button>
       <button class="v-btn" id="vb-rev">◀ 逆転</button>
@@ -405,6 +404,9 @@
     var reverseInterval = null;
     var isReversing = false;
     var backwardStreak = 0;
+
+    var isCameraOpening = false;
+    var cameraPermissionTimeout = null;
 
     var PW = 200, PH = 32;
     var rawProf = new Float32Array(PW);
@@ -587,6 +589,9 @@
     bManualStart.addEventListener('click', startManualMeasurement);
 
     function startManualMeasurement() {
+      if (!v.srcObject && !v.src) {
+        openCamera();
+      }
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
       setPauseState(false);
@@ -678,6 +683,9 @@
         errorBanner.style.display = 'none';
         if (!v.paused) v.pause();
       } else {
+        if (!v.srcObject && !v.src) {
+          openCamera();
+        }
         bPause.className = 'orange col-left-main';
         bPause.innerText = '一時停止 ⏸';
         vbPlay.innerText = '一時停止 ⏸';
@@ -762,24 +770,60 @@
       }
     }
 
+    /* 【強化】カメラ起動処理（フリーズ防止・タイムアウト検知対応） */
     function openCamera() {
+      if (isCameraOpening) return;
+      isCameraOpening = true;
       stopReverse();
       vBar.style.display = 'none';
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return alert('カメラ非対応です');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        isCameraOpening = false;
+        diagMsg.innerText = "❌ カメラ非対応";
+        return alert('お使いのブラウザはカメラ機能に対応していません');
+      }
+
+      diagMsg.innerText = "⏳ カメラ起動中 (許可待ち)...";
+      diagMsg.style.color = "#38bdf8";
+
+      // 許可ダイアログ等で10秒以上止まった場合の救済
+      if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
+      cameraPermissionTimeout = setTimeout(function() {
+        if (!v.srcObject) {
+          diagMsg.innerText = "⚠️ カメラ許可を確認してください";
+          diagMsg.style.color = "#facc15";
+          diagSub.innerText = "ブラウザ設定でカメラを「許可」してください";
+        }
+      }, 8000);
 
       navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 640 } }
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 640 },
+          frameRate: { ideal: 30 }
+        }
       }).then(function(stream) {
+        if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
+        isCameraOpening = false;
         v.src = "";
         v.srcObject = stream;
         v.playbackRate = 1.0;
-        v.play();
+        v.play().catch(function(e) {
+          console.warn("Autoplay blocked, waiting for touch:", e);
+        });
         setPauseState(false);
         resetAll();
         startLoop();
+        diagMsg.innerText = "🟢 測定環境：初期化完了";
+        diagMsg.style.color = "#4ade80";
       }).catch(function(e) {
-        alert('カメラ起動エラー: ' + e.name);
+        if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
+        isCameraOpening = false;
+        diagMsg.innerText = "❌ カメラ停止 / 不許可";
+        diagMsg.style.color = "#ef4444";
+        diagSub.innerText = e.name + ": 設定を確認してください";
+        console.error("Camera access error:", e);
       });
     }
 
@@ -833,6 +877,10 @@
     });
 
     bPause.addEventListener('click', function() {
+      if (!v.srcObject && !v.src) {
+        openCamera();
+        return;
+      }
       setPauseState(!isPaused);
     });
 
@@ -1146,6 +1194,19 @@
         txtRecTimer.style.display = 'none';
       }
     })();
+
+    /* 【アプリ起動時】自動でカメラを即時起動するエントリーポイント */
+    window.addEventListener('DOMContentLoaded', function() {
+      // 起動直後にカメラオープンを要求
+      openCamera();
+    });
+
+    // iOS Safari等のポリシーで初期化がブロックされた場合の救済ハンドラ（最初の画面タップ時）
+    window.addEventListener('touchstart', function() {
+      if (!v.srcObject && !v.src && !isCameraOpening) {
+        openCamera();
+      }
+    }, { once: true, passive: true });
   </script>
 </body>
 </html>
