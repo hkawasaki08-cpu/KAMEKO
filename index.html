@@ -141,7 +141,6 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 録画バー */
     #rec-controls-bar {
       background: #18181b;
       padding: 4px 6px;
@@ -166,7 +165,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 動画コントローラー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
@@ -408,6 +406,27 @@
     var isCameraOpening = false;
     var cameraPermissionTimeout = null;
 
+    /* --- 【新機能】画面自動ロック（スリープ）防止制御 --- */
+    var wakeLock = null;
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', function() {
+            wakeLock = null;
+          });
+        }
+      } catch (err) {
+        console.warn('Wake Lock request failed:', err);
+      }
+    }
+
+    document.addEventListener('visibilitychange', async function() {
+      if (document.visibilityState === 'visible' && (!isPaused || isRunning)) {
+        await requestWakeLock();
+      }
+    });
+
     var PW = 200, PH = 32;
     var rawProf = new Float32Array(PW);
     var curProf = new Float32Array(PW);
@@ -589,6 +608,7 @@
     bManualStart.addEventListener('click', startManualMeasurement);
 
     function startManualMeasurement() {
+      requestWakeLock();
       if (!v.srcObject && !v.src) {
         openCamera();
       }
@@ -683,6 +703,7 @@
         errorBanner.style.display = 'none';
         if (!v.paused) v.pause();
       } else {
+        requestWakeLock();
         if (!v.srcObject && !v.src) {
           openCamera();
         }
@@ -770,7 +791,7 @@
       }
     }
 
-    /* 【強化】カメラ起動処理（フリーズ防止・タイムアウト検知対応） */
+    /* カメラ起動処理（Wake Lock要求・タイムアウト検知対応） */
     function openCamera() {
       if (isCameraOpening) return;
       isCameraOpening = true;
@@ -786,7 +807,6 @@
       diagMsg.innerText = "⏳ カメラ起動中 (許可待ち)...";
       diagMsg.style.color = "#38bdf8";
 
-      // 許可ダイアログ等で10秒以上止まった場合の救済
       if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
       cameraPermissionTimeout = setTimeout(function() {
         if (!v.srcObject) {
@@ -812,6 +832,7 @@
         v.play().catch(function(e) {
           console.warn("Autoplay blocked, waiting for touch:", e);
         });
+        requestWakeLock();
         setPauseState(false);
         resetAll();
         startLoop();
@@ -877,6 +898,7 @@
     });
 
     bPause.addEventListener('click', function() {
+      requestWakeLock();
       if (!v.srcObject && !v.src) {
         openCamera();
         return;
@@ -1195,14 +1217,13 @@
       }
     })();
 
-    /* 【アプリ起動時】自動でカメラを即時起動するエントリーポイント */
+    /* アプリ起動時の自動初期化 */
     window.addEventListener('DOMContentLoaded', function() {
-      // 起動直後にカメラオープンを要求
       openCamera();
     });
 
-    // iOS Safari等のポリシーで初期化がブロックされた場合の救済ハンドラ（最初の画面タップ時）
     window.addEventListener('touchstart', function() {
+      requestWakeLock();
       if (!v.srcObject && !v.src && !isCameraOpening) {
         openCamera();
       }
