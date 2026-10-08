@@ -87,40 +87,43 @@
     }
 
     #rec-controls-bar {
-      background: #18181b; padding: 6px 8px; display: flex;
+      background: #18181b; padding: 5px 8px; display: flex;
       gap: 8px; align-items: center; border-bottom: 1px solid #27272a; flex-shrink: 0;
     }
     .rec-btn {
       flex: 1; background: #b91c1c; color: #fff; border: 1px solid #ef4444;
-      padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
+      padding: 6px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
       cursor: pointer; text-align: center;
     }
     #rec-timer {
       font-size: 12px; font-weight: bold; color: #ef4444;
-      background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px;
+      background: rgba(0,0,0,0.8); padding: 3px 8px; border-radius: 4px;
       display: none; white-space: nowrap;
     }
 
+    /* 【変更】速度＆動画コントローラーの縦サイズ半減 */
     #v-bar {
       background: #0f172a; border-bottom: 1px solid #1e293b;
-      padding: 5px 8px; display: none; flex-direction: column; gap: 4px; flex-shrink: 0;
+      padding: 3px 8px; display: none; flex-direction: column; gap: 3px; flex-shrink: 0;
     }
-    .v-row { display: flex; gap: 5px; align-items: center; }
+    .v-row { display: flex; gap: 4px; align-items: center; }
     .v-btn {
       flex: 1; background: #1e293b; color: #fff; border: 1px solid #475569;
-      padding: 7px 0; border-radius: 5px; font-size: 11px; font-weight: bold;
-      text-align: center; cursor: pointer;
+      padding: 3px 0; border-radius: 4px; font-size: 10px; font-weight: bold;
+      text-align: center; cursor: pointer; min-height: 22px; line-height: 1;
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
     .speed-btn {
       flex: 1; background: #1e293b; color: #94a3b8; border: 1px solid #334155;
-      padding: 4px 0; border-radius: 4px; font-size: 10px; font-weight: bold;
-      text-align: center; cursor: pointer;
+      padding: 2px 0; border-radius: 3px; font-size: 9px; font-weight: bold;
+      text-align: center; cursor: pointer; min-height: 18px; line-height: 1;
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
+    /* 【変更】下部ボタン位置をボタン1個分（約48px）底上げ */
     footer {
-      background: #18181b; padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
+      background: #18181b;
+      padding: 8px 8px calc(52px + env(safe-area-inset-bottom, 12px));
       display: flex; flex-direction: column; gap: 7px; border-top: 1px solid #27272a;
       flex: 1; justify-content: flex-end; z-index: 40;
     }
@@ -142,7 +145,7 @@
 
   <header>
     <div class="title">(仮称)カメラ式ケーブル距離計 - KAMEKO</div>
-    <div id="status-badge">手動待機中 (スタート前)</div>
+    <div id="status-badge">待機中 (ヘッド通過待ち)</div>
   </header>
 
   <div id="dash-container">
@@ -165,8 +168,8 @@
 
   <div id="control-subbar">
     <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
-    <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
-    <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
+    <button class="mode-tab" id="tab-manual">✋ 手動モード (テープ不要)</button>
+    <button class="mode-tab active" id="tab-auto">🎯 自動テープ検知モード</button>
   </div>
 
   <div id="stage">
@@ -190,17 +193,18 @@
     <span id="rec-timer">● REC 00s / 60s</span>
   </div>
 
+  <!-- 【コンパクト化】速度・動画コントローラー -->
   <div id="v-bar">
     <div class="v-row">
-      <span style="font-size: 10px; color: #38bdf8; min-width: 40px; font-weight: bold;">速度:</span>
+      <span style="font-size: 9px; color: #38bdf8; min-width: 30px; font-weight: bold;">速度:</span>
       <button class="speed-btn" data-speed="0.25">0.25x</button>
       <button class="speed-btn" data-speed="0.5">0.5x</button>
       <button class="speed-btn active" data-speed="1.0">1.0x</button>
       <button class="speed-btn" data-speed="1.5">1.5x</button>
       <button class="speed-btn" data-speed="2.0">2.0x</button>
     </div>
-    <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8;">
-      <span>🎬 動画コントローラー</span>
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8; margin: 1px 0;">
+      <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
     <div class="v-row">
@@ -214,7 +218,7 @@
 
   <footer>
     <div class="btn-row">
-      <button id="b-manual-start" class="purple">▶ 手動スタート (0m)</button>
+      <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
       <button id="b-pause" class="orange">一時停止 ⏸</button>
       <button id="b-mic" style="background:#2563eb;">🎤 音声操作 ON</button>
     </div>
@@ -228,7 +232,7 @@
   </footer>
 
   <script>
-    var operationMode = 'MANUAL';
+    var operationMode = 'AUTO';
     var scaleFactor = 2.675; // 1.00m区間実測に基づき補正
     var moveDirection = 1;
     var totalDist = 0.0;
@@ -259,7 +263,7 @@
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
 
-    // 【Safariクラッシュ対策】内部ダウンスケーリング用中間Canvas（最大幅640pxに抑制）
+    // 【Safariクラッシュ対策】内部ダウンスケーリング中間Canvas
     var downCanvas = document.createElement('canvas');
     var downCtx = downCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
     var MAX_DOWN_WIDTH = 640;
@@ -535,7 +539,6 @@
       vBar.style.display = 'none';
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return alert('カメラ非対応です');
 
-      // カメラ起動時もVRAM保護のため解像度上限をVGA〜HD下限に制限
       navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode: { ideal: "environment" }, width: { ideal: 640 } }
@@ -658,7 +661,7 @@
 
           var origVw = v.videoWidth, origVh = v.videoHeight;
 
-          // 【クラッシュ防止】高解像度動画を安全な解像度（最大幅640px）にダウンスケール
+          // ダウンスケーリング（最大幅640px）
           var downScale = 1.0;
           if (origVw > MAX_DOWN_WIDTH) {
             downScale = MAX_DOWN_WIDTH / origVw;
@@ -671,7 +674,6 @@
             downCanvas.height = vh;
           }
 
-          // 中間Canvasに1回縮小描画（SafariのVRAMバッファを解放）
           downCtx.drawImage(v, 0, 0, vw, vh);
 
           var sRect = stage.getBoundingClientRect();
@@ -687,7 +689,6 @@
           var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
           var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
 
-          // 判定枠サイズ（PW=200, PH=32）へ転送
           ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
           var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
 
@@ -701,11 +702,9 @@
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
               sumG += lum; sumLumTotal += lum;
 
-              // 白テープ判定（シワ・陰影適応）
               if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) whiteCountTotal++;
               if (lum > 235) glareCount++;
 
-              // 黄色テープ判定
               if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) yellowCountTotal++;
             }
             rawProf[x] = sumG / PH;
@@ -784,7 +783,6 @@
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
-            // スケール比率にダウンスケール率を整合
             var shiftPx = (bestS * moveDirection) * (swSrc / PW) / downScale;
 
             if (shiftPx < -1.5) {
