@@ -116,19 +116,21 @@
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; font-weight: bold; }
 
-    #manual-scale-bar {
+    /* 方向切替 ＆ スケール切替バー */
+    #option-bar {
       position: absolute; top: 92px; left: 6px; right: 6px;
       display: flex; gap: 6px; z-index: 20;
     }
-    .scale-tab {
+    .opt-btn {
       flex: 1; background: rgba(30, 41, 59, 0.9);
       border: 1px solid #475569; color: #94a3b8;
       padding: 3px 0; border-radius: 4px; font-size: 9px;
       cursor: pointer; text-align: center;
     }
-    .scale-tab.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; font-weight: bold; }
+    .opt-btn.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; font-weight: bold; }
+    .opt-btn.dir-active { background: #0d9488; border-color: #2dd4bf; color: #fff; font-weight: bold; }
 
-    /* テスト用動画コントローラー */
+    /* 動画コントローラー */
     #v-bar {
       position: absolute; bottom: 6px; left: 6px; right: 6px;
       background: rgba(15, 23, 42, 0.95); border: 1px solid #38bdf8;
@@ -149,7 +151,7 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
-    /* 録画操作バー */
+    /* 録画バー */
     .rec-bar {
       position: absolute; top: 122px; right: 6px;
       display: flex; gap: 6px; align-items: center; z-index: 25;
@@ -165,7 +167,7 @@
       display: none;
     }
 
-    /* スピナー / エラーモーダル */
+    /* モーダル・スピナー */
     .overlay-modal {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.75); display: flex; flex-direction: column;
@@ -218,7 +220,7 @@
       <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード (テープ不要)</span>
     </div>
 
-    <!-- 録画ボタン・タイマー -->
+    <!-- 録画バー -->
     <div class="rec-bar">
       <button id="b-rec-start" class="rec-btn">🔴 録画 (最長15秒)</button>
       <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止(保存)</button>
@@ -260,9 +262,11 @@
       <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
     </div>
 
-    <div id="manual-scale-bar">
-      <button class="scale-tab" id="m-scale-close">近接 (約40cm / 2.5 px/mm)</button>
-      <button class="scale-tab active" id="m-scale-wide">引き (約80cm〜1m / 1.4 px/mm)</button>
+    <!-- 方向切替 ＆ スケール切替バー -->
+    <div id="option-bar">
+      <button class="opt-btn dir-active" id="btn-dir">延線方向: 左 ➡ 右</button>
+      <button class="opt-btn" id="m-scale-close">近接 (2.5 px/mm)</button>
+      <button class="opt-btn active" id="m-scale-wide">引き (1.4 px/mm)</button>
     </div>
 
     <!-- 動画コントローラー -->
@@ -321,6 +325,7 @@
   <script>
     var operationMode = 'MANUAL';
     var scaleFactor = 1.4;
+    var moveDirection = 1; // 1: 左 ➡ 右, -1: 左 ⬅ 右
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
@@ -346,7 +351,7 @@
     var isReversing = false;
     var backwardStreak = 0;
 
-    // ゼロアロケーション用固定バッファ
+    // 固定バッファ
     var PW = 200;
     var PH = 32;
     var rawProf = new Float32Array(PW);
@@ -382,7 +387,9 @@
     var boxSubtag = document.getElementById('box-subtag');
     var errorBanner = document.getElementById('error-banner');
     var bManualStart = document.getElementById('b-manual-start');
-    var manualScaleBar = document.getElementById('manual-scale-bar');
+    var btnDir = document.getElementById('btn-dir');
+    var mScaleClose = document.getElementById('m-scale-close');
+    var mScaleWide = document.getElementById('m-scale-wide');
     var vbPlay = document.getElementById('vb-play');
     var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
@@ -392,7 +399,26 @@
     var camErrorMsg = document.getElementById('cam-error-msg');
     var bCamRetry = document.getElementById('b-cam-retry');
 
-    // 発声制御（iOS Safari対応）
+    // 方向切替（左 ➡ 右 ／ 左 ⬅ 右）
+    btnDir.addEventListener('click', function() {
+      if (moveDirection === 1) {
+        moveDirection = -1;
+        btnDir.innerText = '延線方向: 左 ⬅ 右';
+        btnDir.style.background = '#ea580c';
+        btnDir.style.borderColor = '#fb923c';
+        speak('左向き、右からの延線に設定しました', 1);
+      } else {
+        moveDirection = 1;
+        btnDir.innerText = '延線方向: 左 ➡ 右';
+        btnDir.style.background = '#0d9488';
+        btnDir.style.borderColor = '#2dd4bf';
+        speak('右向き、左からの延線に設定しました', 1);
+      }
+      backwardStreak = 0;
+      errorBanner.style.display = 'none';
+      hasPrevProf = false;
+    });
+
     function speak(text, count) {
       if (!('speechSynthesis' in window)) return;
       var times = count || 1;
@@ -512,7 +538,6 @@
       operationMode = 'AUTO';
       tabAuto.className = 'mode-tab active';
       tabManual.className = 'mode-tab';
-      manualScaleBar.style.display = 'none';
       bManualStart.style.display = 'none';
       boxSubtag.innerText = 'ヘッド通過待ち (スタート前不感)';
       resetAll();
@@ -523,27 +548,23 @@
       operationMode = 'MANUAL';
       tabManual.className = 'mode-tab active';
       tabAuto.className = 'mode-tab';
-      manualScaleBar.style.display = 'flex';
       bManualStart.style.display = 'flex';
       boxSubtag.innerText = '手動モード (テープ不要)';
       resetAll();
       speak('手動運用モードです', 1);
     });
 
-    var mScaleClose = document.getElementById('m-scale-close');
-    var mScaleWide = document.getElementById('m-scale-wide');
     mScaleClose.addEventListener('click', function() {
       scaleFactor = 2.5;
-      mScaleClose.className = 'scale-tab active';
-      mScaleWide.className = 'scale-tab';
+      mScaleClose.className = 'opt-btn active';
+      mScaleWide.className = 'opt-btn';
     });
     mScaleWide.addEventListener('click', function() {
       scaleFactor = 1.4;
-      mScaleWide.className = 'scale-tab active';
-      mScaleClose.className = 'scale-tab';
+      mScaleWide.className = 'opt-btn active';
+      mScaleClose.className = 'opt-btn';
     });
 
-    // 手動スタート（0m確定＆トラッキング開始）
     bManualStart.addEventListener('click', function() {
       startManualMeasurement();
     });
@@ -692,7 +713,6 @@
       });
     }
 
-    // カメラ起動処理（スピナー・エラーハンドリング付き）
     function openCamera() {
       stopReverse();
       vBar.style.display = 'none';
@@ -729,7 +749,6 @@
     document.getElementById('b-cam').addEventListener('click', openCamera);
     bCamRetry.addEventListener('click', openCamera);
 
-    // テスト動画読み込み
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -754,6 +773,7 @@
       }
     });
 
+    // 逆再生の改善（0秒時は末尾から自動巻き戻し、iOS向け安定化）
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
@@ -764,7 +784,12 @@
         vbRev.classList.add('active');
         setPauseState(false);
 
-        var stepSec = 0.033 * currentPlaybackRate;
+        // 0秒付近にいる場合は末尾へジャンプ
+        if (v.currentTime <= 0.1 && v.duration > 0) {
+          v.currentTime = v.duration - 0.1;
+        }
+
+        var stepSec = 0.06 * currentPlaybackRate;
         reverseInterval = setInterval(function() {
           if (v.currentTime <= stepSec) {
             v.currentTime = 0;
@@ -773,7 +798,7 @@
           } else {
             v.currentTime -= stepSec;
           }
-        }, 33);
+        }, 50);
       }
     });
 
@@ -798,7 +823,6 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 診断＆エッジプレビュー
     function runDiagnostics(imgData, avgLum, glareCount, now) {
       if (now - lastDiagTime < 250) return;
       lastDiagTime = now;
@@ -845,7 +869,7 @@
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    // 解析ループ
+    // 解析ループ（方向パラメータmoveDirectionを反映）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -911,7 +935,7 @@
 
           runDiagnostics(imgData, sumLumTotal / (PW * PH), glareCount, now);
 
-          // 自動モード（白テープ抜けで強制0mリセット＆トラッキング開始）
+          // 自動モード
           if (operationMode === 'AUTO') {
             var isWhitePresent = whiteCountTotal > (PW * PH * 0.25);
             var isYellowPresent = yellowCountTotal > (PW * PH * 0.12);
@@ -955,7 +979,7 @@
             }
           }
 
-          // 相関トラッキング（スタート前は完全不感）
+          // 相関トラッキング
           var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
@@ -969,7 +993,8 @@
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
-            var shiftPx = bestS * (swSrc / PW);
+            // 方向設定（moveDirection）を反映した進行方向ピクセル量
+            var shiftPx = (bestS * moveDirection) * (swSrc / PW);
 
             if (shiftPx < -1.5) {
               backwardStreak++;
@@ -1027,7 +1052,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // --- 動画録画モジュール（最長15秒・即時保存・メモリ破棄） ---
+    // --- 録画モジュール ---
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
@@ -1139,7 +1164,6 @@
         a.click();
         document.body.removeChild(a);
 
-        // Safariクラッシュ防止のメモリ解放
         setTimeout(function() {
           URL.revokeObjectURL(url);
           recordedChunks = [];
