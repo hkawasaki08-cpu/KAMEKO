@@ -229,7 +229,10 @@
 
   <script>
     var operationMode = 'MANUAL';
-    var scaleFactor = 2.5;
+    
+    // 【実測値補正】1.07mの実測に基づき 2.5 -> 2.675 px/mm に修正
+    var scaleFactor = 2.675;
+    
     var moveDirection = 1;
     var totalDist = 0.0;
     var targetDist = 31.0;
@@ -592,12 +595,7 @@
     });
 
     document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
-    
-    // 【変更】+0.1秒（100ms送り）
-    document.getElementById('vb-f1').addEventListener('click', function() { 
-      v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1); 
-    });
-
+    document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1); });
     document.getElementById('vb-fstep').addEventListener('click', function() { stopReverse(); v.pause(); setPauseState(true); v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
     v.addEventListener('timeupdate', function() {
       if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
@@ -701,10 +699,10 @@
           var yellowRatio = yellowCountTotal / totalPixels;
           runDiagnostics(sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
 
-          // 自動校正シーケンス（実測値に基づき最適化）
+          // 自動校正シーケンス
           if (operationMode === 'AUTO') {
             var isWhitePresent = whiteRatio > 0.08;
-            var isYellowPresent = yellowRatio > 0.05; // 進入しきい値: 5.0%に設定
+            var isYellowPresent = yellowRatio > 0.05;
 
             if (autoState === 'WAIT_HEAD_INSIDE') {
               if (isWhitePresent) {
@@ -726,7 +724,7 @@
             } else if (autoState === 'TRACKING_WAIT_YEL1') {
               if (isYellowPresent) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && yellowRatio < 0.03 && totalPxSinceStart > 450) { // 抜けしきい値: 3.0%
+              } else if (isInsideYellow && yellowRatio < 0.03 && totalPxSinceStart > 450) {
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
                 scaleFactor = totalPxSinceStart / 1000.0;
