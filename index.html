@@ -7,25 +7,15 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100vw;
-      height: 100dvh;
-      background: #09090b;
-      color: #fff;
+      width: 100vw; height: 100dvh;
+      background: #09090b; color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      overflow: hidden; display: flex; flex-direction: column;
     }
     header {
-      background: #18181b;
-      padding: 6px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #27272a;
-      flex-shrink: 0;
-      z-index: 30;
-      height: 38px;
+      background: #18181b; padding: 6px 12px; height: 38px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #27272a; flex-shrink: 0; z-index: 30;
     }
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
     #status-badge {
@@ -37,17 +27,13 @@
     #status-badge.cal2 { background: #0284c7; }
 
     #dash-container {
-      background: #111827;
-      padding: 8px 8px 6px;
-      border-bottom: 1px solid #1f2937;
-      flex-shrink: 0;
-      z-index: 25;
+      background: #111827; padding: 8px 8px 6px;
+      border-bottom: 1px solid #1f2937; flex-shrink: 0; z-index: 25;
     }
     #dash { display: flex; gap: 6px; }
     .card {
-      flex: 1; background: #000;
-      border: 1.5px solid #374151; border-radius: 8px;
-      padding: 6px 2px 4px; text-align: center;
+      flex: 1; background: #000; border: 1.5px solid #374151;
+      border-radius: 8px; padding: 6px 2px 4px; text-align: center;
     }
     .card-lbl { font-size: 11px; color: #9ca3af; font-weight: bold; }
     .card-val { font-size: 28px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
@@ -55,13 +41,8 @@
     .card-sub { font-size: 11px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
     #control-subbar {
-      background: #18181b;
-      padding: 5px 8px;
-      display: flex;
-      gap: 6px;
-      align-items: stretch;
-      border-bottom: 1px solid #27272a;
-      flex-shrink: 0;
+      background: #18181b; padding: 5px 8px; display: flex;
+      gap: 6px; align-items: stretch; border-bottom: 1px solid #27272a; flex-shrink: 0;
     }
     .mode-tab {
       flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
@@ -69,52 +50,33 @@
       cursor: pointer; text-align: center;
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
-
     #btn-dir {
-      flex: 0 0 74px;
-      font-size: 22px;
-      font-weight: 900;
-      line-height: 1;
-      padding: 0;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      flex: 0 0 74px; font-size: 22px; font-weight: 900; line-height: 1;
+      border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
     #stage {
-      position: relative;
-      height: 165px;
-      width: 100%;
-      background: #000;
-      overflow: hidden;
-      flex-shrink: 0;
-      border-bottom: 1px solid #334155;
+      position: relative; height: 165px; width: 100%;
+      background: #000; overflow: hidden; flex-shrink: 0; border-bottom: 1px solid #334155;
     }
-    video {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover;
-    }
-
+    video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
     #target-box {
-      position: absolute;
-      top: 15%; left: 3%; width: 94%; height: 70%;
+      position: absolute; top: 15%; left: 3%; width: 94%; height: 70%;
       border: 2px solid #22c55e; border-radius: 6px;
-      box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.4);
-      z-index: 10; pointer-events: none;
+      box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.4); z-index: 10; pointer-events: none;
+    }
+    #error-banner {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(37, 99, 235, 0.95); border: 2px solid #93c5fd;
+      color: #fff; padding: 6px 18px; border-radius: 20px;
+      font-size: 13px; font-weight: bold; z-index: 35; display: none; white-space: nowrap;
     }
 
     #diag-panel {
-      background: #0b1329;
-      border-bottom: 1px solid #1e293b;
-      padding: 5px 8px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-shrink: 0;
+      background: #0b1329; border-bottom: 1px solid #1e293b;
+      padding: 5px 8px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
     }
     #diag-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
     #diag-msg { font-size: 11px; font-weight: bold; color: #4ade80; }
@@ -124,26 +86,12 @@
       border-radius: 3px; background: #000; display: block;
     }
 
-    #error-banner {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(37, 99, 235, 0.95); border: 2px solid #93c5fd;
-      color: #fff; padding: 6px 18px; border-radius: 20px;
-      font-size: 13px; font-weight: bold; z-index: 35;
-      display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
-    }
-
     #rec-controls-bar {
-      background: #18181b;
-      padding: 6px 8px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      border-bottom: 1px solid #27272a;
-      flex-shrink: 0;
+      background: #18181b; padding: 6px 8px; display: flex;
+      gap: 8px; align-items: center; border-bottom: 1px solid #27272a; flex-shrink: 0;
     }
     .rec-btn {
-      flex: 1;
-      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
+      flex: 1; background: #b91c1c; color: #fff; border: 1px solid #ef4444;
       padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
       cursor: pointer; text-align: center;
     }
@@ -155,59 +103,39 @@
 
     #v-bar {
       background: #0f172a; border-bottom: 1px solid #1e293b;
-      padding: 5px 8px; display: none; flex-direction: column; gap: 4px;
-      flex-shrink: 0;
+      padding: 5px 8px; display: none; flex-direction: column; gap: 4px; flex-shrink: 0;
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
     .v-btn {
-      flex: 1; background: #1e293b; color: #fff;
-      border: 1px solid #475569; padding: 7px 0; border-radius: 5px;
-      font-size: 11px; font-weight: bold; text-align: center; cursor: pointer;
+      flex: 1; background: #1e293b; color: #fff; border: 1px solid #475569;
+      padding: 7px 0; border-radius: 5px; font-size: 11px; font-weight: bold;
+      text-align: center; cursor: pointer;
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
     .speed-btn {
-      flex: 1; background: #1e293b; color: #94a3b8;
-      border: 1px solid #334155; padding: 4px 0; border-radius: 4px;
-      font-size: 10px; font-weight: bold; text-align: center; cursor: pointer;
+      flex: 1; background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+      padding: 4px 0; border-radius: 4px; font-size: 10px; font-weight: bold;
+      text-align: center; cursor: pointer;
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
     footer {
-      background: #18181b;
-      padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
-      display: flex; flex-direction: column; gap: 7px;
-      border-top: 1px solid #27272a; flex: 1; justify-content: flex-end;
-      z-index: 40;
+      background: #18181b; padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
+      display: flex; flex-direction: column; gap: 7px; border-top: 1px solid #27272a;
+      flex: 1; justify-content: flex-end; z-index: 40;
     }
     .btn-row { display: flex; gap: 7px; flex: 1; max-height: 52px; }
     button, label.btn {
-      flex: 1; background: #27272a; color: #fff;
-      border: 1.5px solid #3f3f46; border-radius: 8px;
-      font-size: 13px; font-weight: bold; text-align: center;
-      cursor: pointer; touch-action: manipulation;
-      display: flex; justify-content: center; align-items: center;
-      min-height: 44px;
+      flex: 1; background: #27272a; color: #fff; border: 1.5px solid #3f3f46;
+      border-radius: 8px; font-size: 13px; font-weight: bold; text-align: center;
+      cursor: pointer; touch-action: manipulation; display: flex; justify-content: center;
+      align-items: center; min-height: 44px;
     }
     button.green { background: #16a34a; border-color: #22c55e; font-size: 14px; }
     button.orange { background: #d97706; border-color: #f59e0b; font-size: 14px; }
     button.purple { background: #7c3aed; border-color: #a855f7; font-size: 14px; }
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
-
-    .overlay-modal {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.75); display: flex; flex-direction: column;
-      justify-content: center; align-items: center; z-index: 100;
-    }
-    .modal-box {
-      background: #18181b; border: 1px solid #475569; border-radius: 8px;
-      padding: 18px; text-align: center; max-width: 80%;
-    }
-    .spinner {
-      width: 32px; height: 32px; border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%; border-top-color: #38bdf8; animation: spin 0.8s ease-in-out infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -242,29 +170,16 @@
   </div>
 
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline muted loop></video>
+    <video id="v" playsinline webkit-playsinline muted loop preload="auto"></video>
     <canvas id="c-proc" style="display:none;"></canvas>
     <div id="target-box"></div>
     <div id="error-banner">🔄 バック中...</div>
-
-    <div id="cam-spinner" style="display: none;" class="overlay-modal">
-      <div class="spinner"></div>
-      <p style="margin-top: 8px; font-size: 13px; color: #fff;">カメラ初期化中...</p>
-    </div>
-
-    <div id="cam-error-modal" style="display: none;" class="overlay-modal">
-      <div class="modal-box">
-        <p id="cam-error-msg" style="color: #ef4444; font-size: 13px; font-weight: bold;">カメラの起動に失敗しました</p>
-        <p style="color: #ccc; font-size: 11px; margin: 6px 0 12px;">設定でカメラの使用を許可してください。</p>
-        <button id="b-cam-retry" style="background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 5px; border: none; font-size: 13px; cursor: pointer;">再試行</button>
-      </div>
-    </div>
   </div>
 
   <div id="diag-panel">
     <div id="diag-info">
-      <span id="diag-msg">🔍 カメラ待機中...</span>
-      <span id="diag-sub">カメラ起動で光量・エッジを診断</span>
+      <span id="diag-msg">🔍 待機中...</span>
+      <span id="diag-sub">光量・エッジを診断</span>
     </div>
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
@@ -320,7 +235,6 @@
     var targetDist = 31.0;
     var isRunning = false;
     var isPaused = false;
-
     var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
@@ -335,13 +249,11 @@
     var currentSpeed = 0.0;
     var lastProcessTime = 0;
     var lastDiagTime = 0;
-
     var reverseInterval = null;
     var isReversing = false;
     var backwardStreak = 0;
 
-    var PW = 200;
-    var PH = 32;
+    var PW = 200, PH = 32;
     var rawProf = new Float32Array(PW);
     var curProf = new Float32Array(PW);
     var prevProf = new Float32Array(PW);
@@ -351,15 +263,15 @@
     var targetBox = document.getElementById('target-box');
     var v = document.getElementById('v');
     var cProc = document.getElementById('c-proc');
-    cProc.width = PW;
-    cProc.height = PH;
+    cProc.width = PW; cProc.height = PH;
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
 
-    var diagPanel = document.getElementById('diag-panel');
     var diagMsg = document.getElementById('diag-msg');
     var diagSub = document.getElementById('diag-sub');
     var diagCanvas = document.getElementById('diag-canvas');
     var ctxDiag = diagCanvas.getContext('2d');
+    
+    // Safariクラッシュ防止：ImageDataの完全事前確保
     var diagImgData = ctxDiag.createImageData(160, 32);
 
     var txtDist = document.getElementById('txt-dist');
@@ -378,22 +290,17 @@
     var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
 
-    var camSpinner = document.getElementById('cam-spinner');
-    var camErrorModal = document.getElementById('cam-error-modal');
-    var camErrorMsg = document.getElementById('cam-error-msg');
-    var bCamRetry = document.getElementById('b-cam-retry');
-
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
         moveDirection = -1;
         btnDir.innerText = '⬅';
         btnDir.className = 'dir-rev';
-        speak('左向き、右からの延線に設定しました', 1);
+        speak('左向きに設定しました', 1);
       } else {
         moveDirection = 1;
         btnDir.innerText = '➡';
         btnDir.className = 'dir-fwd';
-        speak('右向き、左からの延線に設定しました', 1);
+        speak('右向きに設定しました', 1);
       }
       backwardStreak = 0;
       errorBanner.style.display = 'none';
@@ -451,47 +358,24 @@
       recognition.lang = 'ja-JP';
       recognition.continuous = true;
       recognition.interimResults = false;
-
       recognition.onresult = function(event) {
         for (var i = event.resultIndex; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
             var cmd = event.results[i][0].transcript.trim().replace(/\s+/g, '');
-            handleVoiceCommand(cmd);
+            if (cmd.includes('スタート') || cmd.includes('開始')) startManualMeasurement();
+            else if (cmd.includes('ストップ') || cmd.includes('停止')) { setPauseState(true); speak('ストップしました', 1); }
+            else if (cmd.includes('リセット')) { resetAll(); speak('リセットしました', 1); }
           }
         }
       };
-      recognition.onend = function() {
-        if (isMicListening) { try { recognition.start(); } catch(e) {} }
-      };
-      recognition.onerror = function(e) {
-        if (e.error === 'not-allowed') {
-          isMicListening = false;
-          bMic.classList.remove('mic-on');
-          bMic.innerText = '🎤 音声操作 ON';
-        }
-      };
-    }
-
-    function handleVoiceCommand(cmd) {
-      if (cmd.includes('スタート') || cmd.includes('開始')) {
-        startManualMeasurement();
-      } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
-        setPauseState(true);
-        speak('ストップしました', 1);
-      } else if (cmd.includes('リセット')) {
-        resetAll();
-        speak('リセットしました', 1);
-      }
+      recognition.onend = function() { if (isMicListening) { try { recognition.start(); } catch(e){} } };
     }
 
     bMic.addEventListener('click', function() {
-      if (!SpeechRecognition) {
-        alert('お使いのブラウザは音声認識に対応していません');
-        return;
-      }
+      if (!SpeechRecognition) return alert('非対応ブラウザです');
       isMicListening = !isMicListening;
       if (isMicListening) {
-        try { recognition.start(); } catch(e) {}
+        try { recognition.start(); } catch(e){}
         bMic.classList.add('mic-on');
         bMic.innerText = '🎤 待受中';
         speak('音声操作を開始します', 1);
@@ -524,28 +408,19 @@
       speak('手動運用モードです', 1);
     });
 
-    bManualStart.addEventListener('click', function() {
-      startManualMeasurement();
-    });
+    bManualStart.addEventListener('click', startManualMeasurement);
 
     function startManualMeasurement() {
-      totalDist = 0.0;
-      totalPxSinceStart = 0.0;
+      totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
       setPauseState(false);
       hasPrevProf = false;
       announcedMarks = {};
       backwardStreak = 0;
       updateDistUI();
-
       statusBadge.className = 'active';
       statusBadge.innerText = '手動測定中';
-
-      if (v.paused) {
-        var p = v.play();
-        if (p !== undefined) { p.catch(function(){}); }
-      }
-      diagPanel.style.display = 'none';
+      if (v.paused) v.play().catch(function(){});
       speak('測定を開始します。', 2);
     }
 
@@ -566,7 +441,6 @@
         txtEta.innerText = "予想: --分--秒";
         backwardStreak = 0;
         errorBanner.style.display = 'none';
-        diagPanel.style.display = 'flex';
         if (!v.paused) v.pause();
       } else {
         bPause.className = 'orange';
@@ -574,18 +448,13 @@
         vbPlay.innerText = '一時停止 ⏸';
         hasPrevProf = false;
         backwardStreak = 0;
-        diagPanel.style.display = 'none';
-        if (v.paused && !isReversing) {
-          var p = v.play();
-          if (p !== undefined) { p.catch(function(){}); }
-        }
+        if (v.paused && !isReversing) v.play().catch(function(){});
       }
     }
 
     function resetAll() {
       stopReverse();
-      totalDist = 0.0;
-      totalPxSinceStart = 0.0;
+      totalDist = 0.0; totalPxSinceStart = 0.0;
       isInsideYellow = false;
       isManualTracking = false;
       whiteFrameCount = 0;
@@ -594,7 +463,6 @@
       speedSamples = [];
       backwardStreak = 0;
       errorBanner.style.display = 'none';
-      diagPanel.style.display = 'flex';
       updateDistUI();
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
@@ -638,32 +506,21 @@
       } else {
         txtRemain.innerText = rem.toFixed(2);
         txtRemain.style.color = '#38bdf8';
-        updateEtaDisplay(rem);
-      }
-    }
-
-    function updateEtaDisplay(rem) {
-      if (rem <= 0) {
-        txtEta.innerText = "予想: 到達済";
-        txtEta.style.color = '#ef4444';
-        return;
-      }
-      if (currentSpeed >= 0.5) {
-        var secTotal = Math.round((rem / currentSpeed) * 60.0);
-        var m = Math.floor(secTotal / 60);
-        var s = secTotal % 60;
-        txtEta.innerText = "予想: " + m + "分" + (s < 10 ? "0" : "") + s + "秒";
-        txtEta.style.color = "#38bdf8";
-      } else {
-        txtEta.innerText = "予想: --分--秒";
-        txtEta.style.color = "#94a3b8";
+        if (currentSpeed >= 0.5) {
+          var secTotal = Math.round((rem / currentSpeed) * 60.0);
+          txtEta.innerText = "予想: " + Math.floor(secTotal / 60) + "分" + ((secTotal % 60 < 10) ? "0" : "") + (secTotal % 60) + "秒";
+          txtEta.style.color = "#38bdf8";
+        } else {
+          txtEta.innerText = "予想: --分--秒";
+          txtEta.style.color = "#94a3b8";
+        }
       }
     }
 
     var spdBtns = document.querySelectorAll('.speed-btn');
     for (var i = 0; i < spdBtns.length; i++) {
       spdBtns[i].addEventListener('click', function() {
-        for (var j = 0; j < spdBtns.length; j++) { spdBtns[j].classList.remove('active'); }
+        for (var j = 0; j < spdBtns.length; j++) spdBtns[j].classList.remove('active');
         this.classList.add('active');
         currentPlaybackRate = parseFloat(this.getAttribute('data-speed'));
         v.playbackRate = currentPlaybackRate;
@@ -673,44 +530,33 @@
     function openCamera() {
       stopReverse();
       vBar.style.display = 'none';
-      camSpinner.style.display = 'flex';
-      camErrorModal.style.display = 'none';
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        camSpinner.style.display = 'none';
-        camErrorMsg.innerText = 'ブラウザがカメラ機能に対応していません';
-        camErrorModal.style.display = 'flex';
-        return;
-      }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return alert('カメラ非対応です');
 
       navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
       }).then(function(stream) {
-        camSpinner.style.display = 'none';
         v.srcObject = stream;
         v.playbackRate = 1.0;
-        v.setAttribute('playsinline', '');
-        v.setAttribute('webkit-playsinline', '');
         v.play();
         setPauseState(false);
         resetAll();
         startLoop();
       }).catch(function(e) {
-        camSpinner.style.display = 'none';
-        camErrorMsg.innerText = 'カメラエラー: ' + e.name;
-        camErrorModal.style.display = 'flex';
+        alert('カメラ起動エラー: ' + e.name);
       });
     }
 
     document.getElementById('b-cam').addEventListener('click', openCamera);
-    bCamRetry.addEventListener('click', openCamera);
 
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
       stopReverse();
-      if (v.srcObject) { v.srcObject.getTracks().forEach(function(t) { t.stop(); }); v.srcObject = null; }
+      if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
+      
+      // メモリ解放を行ってから新しいURLを設定
+      if (v.src) URL.revokeObjectURL(v.src);
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
       v.playbackRate = currentPlaybackRate;
@@ -723,7 +569,7 @@
 
     vbPlay.addEventListener('click', function() {
       stopReverse();
-      if (v.paused) { setPauseState(false); } else { setPauseState(true); }
+      setPauseState(!v.paused);
     });
 
     vbRev.addEventListener('click', function() {
@@ -735,11 +581,6 @@
         isReversing = true;
         vbRev.classList.add('active');
         setPauseState(false);
-
-        if (v.currentTime <= 0.1 && v.duration > 0) {
-          v.currentTime = v.duration - 0.1;
-        }
-
         var stepSec = 0.06 * currentPlaybackRate;
         reverseInterval = setInterval(function() {
           if (v.currentTime <= stepSec) {
@@ -760,9 +601,7 @@
       if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
     });
 
-    bPause.addEventListener('click', function() {
-      if (isPaused) { setPauseState(false); } else { setPauseState(true); }
-    });
+    bPause.addEventListener('click', function() { setPauseState(!isPaused); });
 
     function startLoop() {
       if (isRunning) return;
@@ -770,8 +609,9 @@
       requestAnimationFrame(mainLoop);
     }
 
-    function runDiagnostics(imgData, avgLum, glareCount, whiteRatioPct, yellowRatioPct, now) {
-      if (now - lastDiagTime < 250) return;
+    // メモリ生成ゼロの超軽量診断ルーチン
+    function runDiagnostics(avgLum, glareCount, whiteRatioPct, yellowRatioPct, now) {
+      if (now - lastDiagTime < 300) return;
       lastDiagTime = now;
 
       var sumEdge = 0;
@@ -779,23 +619,19 @@
       var avgEdge = sumEdge / PW;
 
       if (avgLum < 30) {
-        diagMsg.innerText = "❌ 光量不足（暗すぎます）";
-        diagMsg.style.color = "#ef4444";
+        diagMsg.innerText = "❌ 光量不足（暗すぎます）"; diagMsg.style.color = "#ef4444";
       } else if (avgLum > 230) {
-        diagMsg.innerText = "❌ 光量過多（白飛びしています）";
-        diagMsg.style.color = "#ef4444";
+        diagMsg.innerText = "❌ 光量過多（白飛び）"; diagMsg.style.color = "#ef4444";
       } else if (glareCount > (PW * PH * 0.15)) {
-        diagMsg.innerText = "⚠️ 照り返し過多（反射）";
-        diagMsg.style.color = "#facc15";
+        diagMsg.innerText = "⚠️ 照り返し過多（反射）"; diagMsg.style.color = "#facc15";
       } else if (avgEdge < 1.4) {
-        diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）";
-        diagMsg.style.color = "#facc15";
+        diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）"; diagMsg.style.color = "#facc15";
       } else {
-        diagMsg.innerText = "🟢 測定環境：良好";
-        diagMsg.style.color = "#4ade80";
+        diagMsg.innerText = "🟢 測定環境：良好"; diagMsg.style.color = "#4ade80";
       }
       diagSub.innerText = "W(白): " + whiteRatioPct.toFixed(1) + "% | Y(黄): " + yellowRatioPct.toFixed(1) + "% | エッジ: " + avgEdge.toFixed(1);
 
+      // 固定バッファ再利用
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
       for (var dx = 0; dx < dw; dx++) {
@@ -803,10 +639,7 @@
         var val = Math.min(255, Math.floor(Math.abs(curProf[srcX]) * 18));
         for (var dy = 0; dy < dh; dy++) {
           var pIdx = (dy * dw + dx) * 4;
-          dData[pIdx] = val;
-          dData[pIdx+1] = val;
-          dData[pIdx+2] = val;
-          dData[pIdx+3] = 255;
+          dData[pIdx] = val; dData[pIdx+1] = val; dData[pIdx+2] = val; dData[pIdx+3] = 255;
         }
       }
       ctxDiag.putImageData(diagImgData, 0, 0);
@@ -822,14 +655,12 @@
         if (v.readyState >= 2 && v.videoWidth > 0 && isVideoActive) {
           isPaused = false;
 
-          var vw = v.videoWidth;
-          var vh = v.videoHeight;
+          var vw = v.videoWidth, vh = v.videoHeight;
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
           var scale = Math.max(sRect.width / vw, sRect.height / vh);
-          var rw = vw * scale;
-          var rh = vh * scale;
+          var rw = vw * scale, rh = vh * scale;
           var ox = (sRect.width - rw) / 2;
           var oy = (sRect.height - rh) / 2;
 
@@ -841,57 +672,39 @@
           ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
           var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
 
-          var whiteCountTotal = 0;
-          var yellowCountTotal = 0;
-          var glareCount = 0;
-          var sumLumTotal = 0;
+          var whiteCountTotal = 0, yellowCountTotal = 0, glareCount = 0, sumLumTotal = 0;
 
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
               var idx = (y * PW + x) * 4;
-              var r = imgData[idx];
-              var g = imgData[idx+1];
-              var b = imgData[idx+2];
-
+              var r = imgData[idx], g = imgData[idx+1], b = imgData[idx+2];
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
-              sumG += lum;
-              sumLumTotal += lum;
+              sumG += lum; sumLumTotal += lum;
 
-              // 【改善：白テープ判定】
-              // シース(暗部)に対して十分に明るく(輝度105以上)、照明や反射の色被りを許容
-              if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) {
-                whiteCountTotal++;
-              }
-
-              // 【グレア判定】
+              // 【白テープ】シワ・陰影適応（実測18.6%を安定検知）
+              if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) whiteCountTotal++;
               if (lum > 235) glareCount++;
 
-              // 【改善：黄色テープ判定】
-              // 現場照明下での黄テープ（赤・緑成分が青より明確に高い条件）
-              if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) {
-                yellowCountTotal++;
-              }
+              // 【黄色テープ】青成分が低く赤緑が高い色条件
+              if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) yellowCountTotal++;
             }
             rawProf[x] = sumG / PH;
           }
 
-          // 一次微分エッジプロファイル（ゼロアロケーション）
+          // ゼロアロケーション微分プロファイル
           for (var x = 0; x < PW; x++) {
-            if (x === 0) {
-              curProf[x] = rawProf[1] - rawProf[0];
-            } else if (x === PW - 1) {
-              curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
-            } else {
-              curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
-            }
+            if (x === 0) curProf[x] = rawProf[1] - rawProf[0];
+            else if (x === PW - 1) curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
+            else curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
           }
 
           var totalPixels = PW * PH;
           var whiteRatio = whiteCountTotal / totalPixels;
           var yellowRatio = yellowCountTotal / totalPixels;
-          runDiagnostics(imgData, sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
+          runDiagnostics(sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
 
+          // 自動校正シーケンス
           if (operationMode === 'AUTO') {
             var isWhitePresent = whiteRatio > 0.08;
             var isYellowPresent = yellowRatio > 0.06;
@@ -903,17 +716,14 @@
                   autoState = 'WAIT_HEAD_TRAILING';
                   statusBadge.innerText = 'ヘッド通過中...';
                 }
-              } else {
-                whiteFrameCount = 0;
-              }
+              } else { whiteFrameCount = 0; }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
+              // 白テープが抜けきったら 0.00m でスタート
               if (whiteRatio < 0.04) {
                 autoState = 'TRACKING_WAIT_YEL1';
-                totalDist = 0.0;
-                totalPxSinceStart = 0.0;
+                totalDist = 0.0; totalPxSinceStart = 0.0;
                 statusBadge.className = 'active';
                 statusBadge.innerText = '測定中 (1m黄待ち)';
-                diagPanel.style.display = 'none';
                 updateDistUI();
                 speak('ヘッド通過、測定を開始します。', 2);
               }
@@ -963,8 +773,6 @@
               backwardStreak++;
               if (backwardStreak >= 3) {
                 errorBanner.innerText = '🔄 バック中...';
-                errorBanner.style.background = 'rgba(59, 130, 246, 0.95)';
-                errorBanner.style.borderColor = '#93c5fd';
                 errorBanner.style.display = 'block';
               }
             } else {
@@ -980,19 +788,16 @@
               checkDistanceAnnouncements(totalDist);
 
               if (dtSec > 0 && dtSec < 0.25) {
-                var instSpeed = (Math.abs(deltaM) / dtSec) * 60.0;
-                speedSamples.push(instSpeed);
+                speedSamples.push((Math.abs(deltaM) / dtSec) * 60.0);
               }
             }
 
             if (now - lastSpeedTime > 500) {
               if (speedSamples.length > 0) {
-                var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
+                var avg = speedSamples.reduce(function(a, b){ return a + b; }, 0) / speedSamples.length;
                 currentSpeed = currentSpeed * 0.3 + avg * 0.7;
                 speedSamples = [];
-              } else {
-                currentSpeed = 0.0;
-              }
+              } else { currentSpeed = 0.0; }
               txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
               updateDistUI();
               lastSpeedTime = now;
@@ -1015,27 +820,20 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 録画機能 (最長1分 / 即時ダウンロード / メモリ解放)
+    // 録画機能（メモリ即時解放）
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
       var recTimerInterval = null;
       var autoStopTimeout = null;
-      var recSec = 0;
-      var MAX_REC_SEC = 60;
+      var recSec = 0, MAX_REC_SEC = 60;
 
       var bRecStart = document.getElementById('b-rec-start');
       var bRecStop = document.getElementById('b-rec-stop');
       var txtRecTimer = document.getElementById('rec-timer');
 
       function getSupportedMimeType() {
-        var types = [
-          'video/mp4;codecs=avc1',
-          'video/mp4',
-          'video/webm;codecs=vp9',
-          'video/webm;codecs=vp8',
-          'video/webm'
-        ];
+        var types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
         for (var i = 0; i < types.length; i++) {
           if (MediaRecorder.isTypeSupported(types[i])) return types[i];
         }
@@ -1043,48 +841,37 @@
       }
 
       bRecStart.addEventListener('click', function() {
-        if (!v.srcObject) {
-          alert('カメラが起動していません。「カメラ起動」を押してください。');
-          return;
-        }
-        if (typeof MediaRecorder === 'undefined') {
-          alert('お使いのブラウザは録画機能に対応していません。');
-          return;
-        }
-
-        var stream = v.srcObject;
-        var mimeType = getSupportedMimeType();
-        var options = mimeType ? { mimeType: mimeType } : {};
+        if (!v.srcObject) return alert('カメラが起動していません');
+        if (typeof MediaRecorder === 'undefined') return alert('録画非対応です');
 
         try {
           recordedChunks = [];
-          mediaRecorder = new MediaRecorder(stream, options);
-        } catch(e) {
-          alert('録画初期化エラー: ' + e.message);
-          return;
-        }
+          mediaRecorder = new MediaRecorder(v.srcObject, { mimeType: getSupportedMimeType() });
+        } catch(e) { return alert('録画初期化エラー: ' + e.message); }
 
-        mediaRecorder.ondataavailable = function(e) {
-          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-        };
-
+        mediaRecorder.ondataavailable = function(e) { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
         mediaRecorder.onstop = function() {
           cleanupRecUI();
-          exportVideo(mimeType);
+          var blob = new Blob(recordedChunks, { type: 'video/mp4' });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'kameko_rec_' + Date.now() + '.mp4';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function() { URL.revokeObjectURL(url); recordedChunks = []; mediaRecorder = null; }, 1500);
         };
 
         mediaRecorder.start(1000);
-
         bRecStart.style.display = 'none';
         bRecStop.style.display = 'block';
         txtRecTimer.style.display = 'block';
         recSec = 0;
-        txtRecTimer.innerText = '● REC 00s / ' + MAX_REC_SEC + 's';
-
         recTimerInterval = setInterval(function() {
           recSec++;
-          var secStr = recSec < 10 ? '0' + recSec : recSec;
-          txtRecTimer.innerText = '● REC ' + secStr + 's / ' + MAX_REC_SEC + 's';
+          txtRecTimer.innerText = '● REC ' + (recSec < 10 ? '0' : '') + recSec + 's / 60s';
         }, 1000);
 
         autoStopTimeout = setTimeout(function() {
@@ -1102,37 +889,6 @@
         bRecStart.style.display = 'block';
         bRecStop.style.display = 'none';
         txtRecTimer.style.display = 'none';
-      }
-
-      function exportVideo(mimeType) {
-        if (recordedChunks.length === 0) return;
-        var actualType = mimeType || 'video/mp4';
-        var ext = actualType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
-        var blob = new Blob(recordedChunks, { type: actualType });
-        var url = URL.createObjectURL(blob);
-
-        var now = new Date();
-        var ts = now.getFullYear() +
-          ('0' + (now.getMonth() + 1)).slice(-2) +
-          ('0' + now.getDate()).slice(-2) + '_' +
-          ('0' + now.getHours()).slice(-2) +
-          ('0' + now.getMinutes()).slice(-2) +
-          ('0' + now.getSeconds()).slice(-2);
-        var filename = 'kameko_sample_' + ts + '.' + ext;
-
-        var a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        setTimeout(function() {
-          URL.revokeObjectURL(url);
-          recordedChunks = [];
-          mediaRecorder = null;
-        }, 1500);
       }
     })();
   </script>
