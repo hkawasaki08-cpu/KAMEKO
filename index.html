@@ -30,7 +30,7 @@
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
     #status-badge {
       font-size: 10px; padding: 2px 7px; border-radius: 4px;
-      background: #8b5cf6; color: #fff; font-weight: bold;
+      background: #475569; color: #fff; font-weight: bold;
     }
     #status-badge.active { background: #16a34a; }
     #status-badge.cal1 { background: #d97706; }
@@ -149,6 +149,38 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
+    /* 録画操作バー */
+    .rec-bar {
+      position: absolute; top: 122px; right: 6px;
+      display: flex; gap: 6px; align-items: center; z-index: 25;
+    }
+    .rec-btn {
+      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
+      padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;
+      cursor: pointer;
+    }
+    #rec-timer {
+      font-size: 10px; font-weight: bold; color: #ef4444;
+      background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px;
+      display: none;
+    }
+
+    /* スピナー / エラーモーダル */
+    .overlay-modal {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.75); display: flex; flex-direction: column;
+      justify-content: center; align-items: center; z-index: 100;
+    }
+    .modal-box {
+      background: #18181b; border: 1px solid #475569; border-radius: 8px;
+      padding: 16px; text-align: center; max-width: 80%;
+    }
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%; border-top-color: #38bdf8; animation: spin 0.8s ease-in-out infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     footer {
       background: #18181b;
       padding: 6px 8px calc(14px + env(safe-area-inset-bottom, 12px));
@@ -174,7 +206,7 @@
 
   <header>
     <div class="title">(仮称)カメラ式ケーブル距離計 - KAMEKO</div>
-    <div id="status-badge" style="background:#475569;">手動待機中 (スタート前)</div>
+    <div id="status-badge">手動待機中 (スタート前)</div>
   </header>
 
   <div id="stage">
@@ -184,6 +216,13 @@
     <div id="target-box">
       <span class="box-tag">🎯 測定枠</span>
       <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード (テープ不要)</span>
+    </div>
+
+    <!-- 録画ボタン・タイマー -->
+    <div class="rec-bar">
+      <button id="b-rec-start" class="rec-btn">🔴 録画 (最長15秒)</button>
+      <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止(保存)</button>
+      <span id="rec-timer">● REC 00s</span>
     </div>
 
     <!-- 診断＆エッジプレビューパネル -->
@@ -226,6 +265,7 @@
       <button class="scale-tab active" id="m-scale-wide">引き (約80cm〜1m / 1.4 px/mm)</button>
     </div>
 
+    <!-- 動画コントローラー -->
     <div id="v-bar">
       <div class="v-row">
         <span style="font-size: 9px; color: #38bdf8; min-width: 40px; font-weight: bold;">速度:</span>
@@ -245,6 +285,20 @@
         <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
         <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
         <button class="v-btn" id="vb-f1">+1秒</button>
+      </div>
+    </div>
+
+    <!-- スピナー ＆ カメラエラーモーダル -->
+    <div id="cam-spinner" style="display: none;" class="overlay-modal">
+      <div class="spinner"></div>
+      <p style="margin-top: 8px; font-size: 12px; color: #fff;">カメラ初期化中...</p>
+    </div>
+
+    <div id="cam-error-modal" style="display: none;" class="overlay-modal">
+      <div class="modal-box">
+        <p id="cam-error-msg" style="color: #ef4444; font-size: 13px; font-weight: bold;">カメラの起動に失敗しました</p>
+        <p style="color: #ccc; font-size: 11px; margin: 6px 0 12px;">設定でカメラの使用を許可してください。</p>
+        <button id="b-cam-retry" style="background: #2563eb; color: #fff; padding: 6px 14px; border-radius: 4px; border: none; font-size: 12px; cursor: pointer;">再試行</button>
       </div>
     </div>
   </div>
@@ -272,7 +326,7 @@
     var isRunning = false;
     var isPaused = false;
 
-    // スタート前は完全不感（計測しない）フラグ
+    // スタート前不感フラグ
     var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
@@ -292,7 +346,7 @@
     var isReversing = false;
     var backwardStreak = 0;
 
-    // 固定バッファ（ゼロアロケーション）
+    // ゼロアロケーション用固定バッファ
     var PW = 200;
     var PH = 32;
     var rawProf = new Float32Array(PW);
@@ -333,6 +387,12 @@
     var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
 
+    var camSpinner = document.getElementById('cam-spinner');
+    var camErrorModal = document.getElementById('cam-error-modal');
+    var camErrorMsg = document.getElementById('cam-error-msg');
+    var bCamRetry = document.getElementById('b-cam-retry');
+
+    // 発声制御（iOS Safari対応）
     function speak(text, count) {
       if (!('speechSynthesis' in window)) return;
       var times = count || 1;
@@ -483,7 +543,7 @@
       mScaleClose.className = 'scale-tab';
     });
 
-    // 手動スタート：押した瞬間に強制0mリセット＆計測開始
+    // 手動スタート（0m確定＆トラッキング開始）
     bManualStart.addEventListener('click', function() {
       startManualMeasurement();
     });
@@ -545,13 +605,12 @@
       }
     }
 
-    // リセット時：トラッキングを停止して完全0m待機へ
     function resetAll() {
       stopReverse();
       totalDist = 0.0;
       totalPxSinceStart = 0.0;
       isInsideYellow = false;
-      isManualTracking = false; // スタート前は計測しない
+      isManualTracking = false;
       hasPrevProf = false;
       announcedMarks = {};
       speedSamples = [];
@@ -633,21 +692,44 @@
       });
     }
 
-    document.getElementById('b-cam').addEventListener('click', function() {
+    // カメラ起動処理（スピナー・エラーハンドリング付き）
+    function openCamera() {
       stopReverse();
       vBar.style.display = 'none';
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
-        }).then(function(stream) {
-          v.srcObject = stream; v.playbackRate = 1.0; v.play();
-          setPauseState(false);
-          startLoop();
-        }).catch(function(e) { alert("カメラエラー: " + e.message); });
-      }
-    });
+      camSpinner.style.display = 'flex';
+      camErrorModal.style.display = 'none';
 
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        camSpinner.style.display = 'none';
+        camErrorMsg.innerText = 'ブラウザがカメラ機能に対応していません';
+        camErrorModal.style.display = 'flex';
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
+      }).then(function(stream) {
+        camSpinner.style.display = 'none';
+        v.srcObject = stream;
+        v.playbackRate = 1.0;
+        v.setAttribute('playsinline', '');
+        v.setAttribute('webkit-playsinline', '');
+        v.play();
+        setPauseState(false);
+        resetAll();
+        startLoop();
+      }).catch(function(e) {
+        camSpinner.style.display = 'none';
+        camErrorMsg.innerText = 'カメラエラー: ' + e.name;
+        camErrorModal.style.display = 'flex';
+      });
+    }
+
+    document.getElementById('b-cam').addEventListener('click', openCamera);
+    bCamRetry.addEventListener('click', openCamera);
+
+    // テスト動画読み込み
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -716,6 +798,7 @@
       requestAnimationFrame(mainLoop);
     }
 
+    // 診断＆エッジプレビュー
     function runDiagnostics(imgData, avgLum, glareCount, now) {
       if (now - lastDiagTime < 250) return;
       lastDiagTime = now;
@@ -797,7 +880,6 @@
           var glareCount = 0;
           var sumLumTotal = 0;
 
-          // 1. 輝度の列平均算出＆診断用集計
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -817,7 +899,6 @@
             rawProf[x] = sumG / PH;
           }
 
-          // 2. 黒シース微分エッジ強調
           for (var x = 0; x < PW; x++) {
             if (x === 0) {
               curProf[x] = rawProf[1] - rawProf[0];
@@ -828,7 +909,6 @@
             }
           }
 
-          // 3. 環境診断＆エッジ描画を実行
           runDiagnostics(imgData, sumLumTotal / (PW * PH), glareCount, now);
 
           // 自動モード（白テープ抜けで強制0mリセット＆トラッキング開始）
@@ -840,7 +920,6 @@
               autoState = 'WAIT_HEAD_TRAILING';
               statusBadge.innerText = 'ヘッド通過中...';
             } else if (autoState === 'WAIT_HEAD_TRAILING' && !isWhitePresent) {
-              // 白テープ抜けの瞬間：強制0mリセット＆トラッキング開始
               autoState = 'TRACKING_WAIT_YEL1';
               totalDist = 0.0;
               totalPxSinceStart = 0.0;
@@ -876,11 +955,10 @@
             }
           }
 
-          // 相関トラッキング判定
+          // 相関トラッキング（スタート前は完全不感）
           var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
-          // スタート前は距離・速度計算を完全バイパス（先行ロープ誤動作防止）
           if (canTrack && hasPrevProf) {
             var maxS = 40, bestS = 0, minDiff = 99999999;
             for (var s = -maxS; s <= maxS; s++) {
@@ -893,7 +971,6 @@
 
             var shiftPx = bestS * (swSrc / PW);
 
-            // バック（逆送り）画面表示
             if (shiftPx < -1.5) {
               backwardStreak++;
               if (backwardStreak >= 3) {
@@ -933,7 +1010,6 @@
               lastSpeedTime = now;
             }
           } else {
-            // スタート前の速度は0固定
             txtSpeed.innerText = "0.0";
           }
 
@@ -950,6 +1026,127 @@
 
       requestAnimationFrame(mainLoop);
     }
+
+    // --- 動画録画モジュール（最長15秒・即時保存・メモリ破棄） ---
+    (function() {
+      var mediaRecorder = null;
+      var recordedChunks = [];
+      var recTimerInterval = null;
+      var autoStopTimeout = null;
+      var recSec = 0;
+      var MAX_REC_SEC = 15;
+
+      var bRecStart = document.getElementById('b-rec-start');
+      var bRecStop = document.getElementById('b-rec-stop');
+      var txtRecTimer = document.getElementById('rec-timer');
+
+      function getSupportedMimeType() {
+        var types = [
+          'video/mp4;codecs=avc1',
+          'video/mp4',
+          'video/webm;codecs=vp9',
+          'video/webm;codecs=vp8',
+          'video/webm'
+        ];
+        for (var i = 0; i < types.length; i++) {
+          if (MediaRecorder.isTypeSupported(types[i])) return types[i];
+        }
+        return '';
+      }
+
+      bRecStart.addEventListener('click', function() {
+        if (!v.srcObject) {
+          alert('カメラが起動していません。「カメラ起動」を押してください。');
+          return;
+        }
+        if (typeof MediaRecorder === 'undefined') {
+          alert('お使いのブラウザは録画機能に対応していません。');
+          return;
+        }
+
+        var stream = v.srcObject;
+        var mimeType = getSupportedMimeType();
+        var options = mimeType ? { mimeType: mimeType } : {};
+
+        try {
+          recordedChunks = [];
+          mediaRecorder = new MediaRecorder(stream, options);
+        } catch(e) {
+          alert('録画初期化エラー: ' + e.message);
+          return;
+        }
+
+        mediaRecorder.ondataavailable = function(e) {
+          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+        };
+
+        mediaRecorder.onstop = function() {
+          cleanupRecUI();
+          exportVideo(mimeType);
+        };
+
+        mediaRecorder.start(1000);
+
+        bRecStart.style.display = 'none';
+        bRecStop.style.display = 'inline-block';
+        txtRecTimer.style.display = 'inline-block';
+        recSec = 0;
+        txtRecTimer.innerText = '● REC 00s';
+
+        recTimerInterval = setInterval(function() {
+          recSec++;
+          txtRecTimer.innerText = '● REC ' + (recSec < 10 ? '0' + recSec : recSec) + 's';
+        }, 1000);
+
+        autoStopTimeout = setTimeout(function() {
+          if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+        }, MAX_REC_SEC * 1000);
+      });
+
+      bRecStop.addEventListener('click', function() {
+        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+      });
+
+      function cleanupRecUI() {
+        if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
+        if (autoStopTimeout) { clearTimeout(autoStopTimeout); autoStopTimeout = null; }
+        bRecStart.style.display = 'inline-block';
+        bRecStop.style.display = 'none';
+        txtRecTimer.style.display = 'none';
+      }
+
+      function exportVideo(mimeType) {
+        if (recordedChunks.length === 0) return;
+        var actualType = mimeType || 'video/mp4';
+        var ext = actualType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+        var blob = new Blob(recordedChunks, { type: actualType });
+        var url = URL.createObjectURL(blob);
+
+        var now = new Date();
+        var ts = now.getFullYear() +
+          ('0' + (now.getMonth() + 1)).slice(-2) +
+          ('0' + now.getDate()).slice(-2) + '_' +
+          ('0' + now.getHours()).slice(-2) +
+          ('0' + now.getMinutes()).slice(-2) +
+          ('0' + now.getSeconds()).slice(-2);
+        var filename = 'kameko_sample_' + ts + '.' + ext;
+
+        var a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Safariクラッシュ防止のメモリ解放
+        setTimeout(function() {
+          URL.revokeObjectURL(url);
+          recordedChunks = [];
+          mediaRecorder = null;
+        }, 1500);
+      }
+    })();
   </script>
 </body>
 </html>
