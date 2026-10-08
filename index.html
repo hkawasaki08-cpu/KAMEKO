@@ -130,17 +130,20 @@
       border-radius: 2px; background: #000; display: block;
     }
 
+    /* 録画バー（幅1/4・右端配置） */
     #rec-controls-bar {
       background: #18181b;
       padding: 3px 6px;
       display: flex;
       gap: 6px;
       align-items: center;
+      justify-content: flex-end;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
     }
     .rec-btn {
-      flex: 1; background: #b91c1c; color: #fff; border: 1px solid #ef4444;
+      flex: 0 0 25%;
+      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
       padding: 4px 0; border-radius: 4px; font-size: 10px; font-weight: bold;
       cursor: pointer; text-align: center; line-height: 1;
     }
@@ -150,7 +153,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 動画コントローラーバー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
@@ -170,7 +172,6 @@
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
 
-    /* 速度コントロール専用スタイル */
     .spd-step-btn {
       flex: 0 0 54px;
       background: #1e293b; color: #38bdf8;
@@ -212,6 +213,12 @@
     button.purple { background: #7c3aed; border-color: #a855f7; }
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
+
+    /* 音声操作ボタンの幅を半分（縮小）に指定 */
+    #b-mic {
+      flex: 0 0 38%;
+      font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -260,10 +267,11 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
+  <!-- 録画バー（幅1/4・右端配置） -->
   <div id="rec-controls-bar">
-    <button id="b-rec-start" class="rec-btn">🔴 録画 (最長1分)</button>
-    <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止 (保存)</button>
     <span id="rec-timer">● REC 00s / 60s</span>
+    <button id="b-rec-start" class="rec-btn">🔴 録画</button>
+    <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止</button>
   </div>
 
   <!-- 動画コントローラー -->
@@ -271,7 +279,7 @@
     <div class="v-row">
       <span style="font-size: 9px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
       <button class="spd-step-btn" id="b-spd-down">➖ -0.5</button>
-      <div id="txt-spd-val" title="タップで等速(1.0x)/停止(0.0x)切替">1.0x</div>
+      <div id="txt-spd-val" title="タップで等速(1.0x)/停止(0.0x)切替">+1.0x</div>
       <button class="spd-step-btn" id="b-spd-up">➕ +0.5</button>
     </div>
     <div style="display:flex; justify-content:space-between; font-size:8px; color:#94a3b8; margin: 1px 0;">
@@ -289,14 +297,17 @@
   <footer>
     <div class="btn-row">
       <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
-      <button id="b-pause" class="orange">一時停止 ⏸</button>
-      <button id="b-mic" style="background:#2563eb;">🎤 音声操作 ON</button>
+      <!-- 「測定再開」を「測定開始 ▶」に変更 -->
+      <button id="b-pause" class="green">測定開始 ▶</button>
+      <!-- 音声操作ボタンの幅を半分にスリム化 -->
+      <button id="b-mic" style="background:#2563eb;">🎤 音声操作</button>
     </div>
     <div class="btn-row">
       <button id="b-cam" class="green">カメラ起動</button>
+      <!-- 「目標m」と「動画読込」の位置を入れ替え -->
+      <button id="b-set-target" style="background:#334155;">目標m</button>
       <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
       <input type="file" id="f-video" accept="video/*">
-      <button id="b-set-target" style="background:#334155;">目標m</button>
       <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
     </div>
   </footer>
@@ -308,7 +319,7 @@
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
-    var isPaused = false;
+    var isPaused = true; // 初期状態は停止中
     var isManualTracking = false;
 
     // 速度コントロール変数（範囲: -3.0 〜 +5.0）
@@ -465,7 +476,7 @@
       } else {
         recognition.stop();
         bMic.classList.remove('mic-on');
-        bMic.innerText = '🎤 音声操作 ON';
+        bMic.innerText = '🎤 音声操作';
         speak('音声操作を終了しました', 1);
       }
     });
@@ -537,7 +548,6 @@
       }, 50);
     }
 
-    // 速度変更ルーチン（-3.0 〜 +5.0）
     function applyPlaybackRate(rate) {
       currentPlaybackRate = Math.round(rate * 10) / 10;
       if (currentPlaybackRate > 5.0) currentPlaybackRate = 5.0;
@@ -553,7 +563,6 @@
         stopReverse();
         setPauseState(true);
       } else {
-        // 負の値：可変逆再生
         startReverse(currentPlaybackRate);
       }
     }
@@ -579,7 +588,7 @@
       if (isPaused) {
         stopReverse();
         bPause.className = 'green';
-        bPause.innerText = '測定再開 ▶';
+        bPause.innerText = '測定開始 ▶';
         vbPlay.innerText = '再生 ▶';
         txtSpeed.innerText = "0.0";
         txtEta.innerText = "予想: --分--秒";
@@ -725,12 +734,10 @@
       }
     });
 
-    // -0.1秒
     document.getElementById('vb-b1').addEventListener('click', function() {
       v.currentTime = Math.max(0, v.currentTime - 0.1);
     });
 
-    // +0.1秒
     document.getElementById('vb-f1').addEventListener('click', function() {
       v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1);
     });
