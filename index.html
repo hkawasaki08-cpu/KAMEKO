@@ -55,7 +55,6 @@
     .card-unit { font-size: 10px; color: #9ca3af; margin-left: 1px; }
     .card-sub { font-size: 8px; color: #38bdf8; font-weight: bold; margin-top: 1px; }
 
-    /* 【変更】手動・自動ボタンの高さを倍増（最小高42px） */
     #control-subbar {
       background: #18181b;
       padding: 4px 6px;
@@ -87,7 +86,6 @@
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 映像ステージ（可変伸縮エリア） */
     #stage {
       position: relative;
       flex: 1;
@@ -117,7 +115,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 診断パネル */
     #diag-panel {
       background: #0b1329;
       border-bottom: 1px solid #1e293b;
@@ -135,7 +132,6 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 録画バー（幅1/4・右端配置） */
     #rec-controls-bar {
       background: #18181b;
       padding: 3px 6px;
@@ -158,7 +154,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 動画コントローラー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
@@ -195,6 +190,7 @@
       font-variant-numeric: tabular-nums; line-height: 1;
     }
 
+    /* フッター：ボタン幅とレイアウトの最適化 */
     footer {
       background: #18181b;
       padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 2px));
@@ -206,13 +202,14 @@
       z-index: 40;
     }
     .btn-row { display: flex; gap: 4px; height: 36px; }
+    
     button, label.btn {
-      flex: 1; background: #27272a; color: #fff;
+      background: #27272a; color: #fff;
       border: 1.5px solid #3f3f46; border-radius: 6px;
       font-size: 12px; font-weight: bold; text-align: center;
       cursor: pointer; touch-action: manipulation;
       display: flex; justify-content: center; align-items: center;
-      min-height: 34px;
+      min-height: 34px; padding: 0 4px;
     }
     button.green { background: #16a34a; border-color: #22c55e; }
     button.orange { background: #d97706; border-color: #f59e0b; }
@@ -220,16 +217,26 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 【変更】測定開始ボタンを大型化（約72%） */
-    #b-pause {
-      flex: 1;
-      font-size: 13px;
+    /* 上段ボタンの幅バランス調整 */
+    #b-manual-start {
+      flex: 1.2;
+      font-size: 11px;
     }
-    /* 【変更】音声操作ボタンを幅28%に縮小 */
+    #b-pause {
+      flex: 1.5;
+      font-size: 12px;
+    }
     #b-mic {
-      flex: 0 0 28%;
-      font-size: 10px;
-      padding: 0 2px;
+      flex: 0 0 68px; /* 音声ボタンを固定幅に整列 */
+      font-size: 11px;
+      padding: 0;
+    }
+
+    /* 下段3ボタン：均等幅（1:1:1） */
+    .btn-row-bottom button,
+    .btn-row-bottom label.btn {
+      flex: 1;
+      font-size: 12px;
     }
   </style>
 </head>
@@ -305,15 +312,14 @@
   </div>
 
   <footer>
+    <!-- 上段：手動・自動に応じた整然バランス配置 -->
     <div class="btn-row">
       <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
-      <!-- 主操作ボタン（大型） -->
       <button id="b-pause" class="green">測定開始 ▶</button>
-      <!-- 音声操作ボタン（コンパクト幅） -->
       <button id="b-mic" style="background:#2563eb;">🎤 音声</button>
     </div>
-    <div class="btn-row">
-      <!-- 【変更】カメラ起動廃止、目標m / 0mリセット / 動画読込の並び -->
+    <!-- 下段：均等3分割配置 -->
+    <div class="btn-row btn-row-bottom">
       <button id="b-set-target" style="background:#334155;">目標m</button>
       <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
       <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
@@ -323,7 +329,7 @@
 
   <script>
     var operationMode = 'AUTO';
-    var scaleFactor = 2.675; // 実測補正済スケール
+    var scaleFactor = 2.675;
     var moveDirection = 1;
     var totalDist = 0.0;
     var targetDist = 31.0;
@@ -491,12 +497,12 @@
     var tabAuto = document.getElementById('tab-auto');
     var tabManual = document.getElementById('tab-manual');
 
-    // 「自動」ボタン押下時：自動モード切り替え ＋ カメラ自動起動
     tabAuto.addEventListener('click', function() {
       operationMode = 'AUTO';
       tabAuto.className = 'mode-tab active';
       tabManual.className = 'mode-tab';
       bManualStart.style.display = 'none';
+      bPause.style.flex = "1.5";
       resetAll();
       speak('自動モードに切り替えました', 1);
 
@@ -505,12 +511,12 @@
       }
     });
 
-    // 「手動」ボタン押下時：手動モード切り替え ＋ カメラ自動起動
     tabManual.addEventListener('click', function() {
       operationMode = 'MANUAL';
       tabManual.className = 'mode-tab active';
       tabAuto.className = 'mode-tab';
       bManualStart.style.display = 'flex';
+      bPause.style.flex = "1.2";
       resetAll();
       speak('手動運用モードです', 1);
 
