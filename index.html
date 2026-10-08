@@ -55,17 +55,16 @@
     .card-unit { font-size: 12px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 11px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* オプション・設定バー */
+    /* オプション・設定バー（方向切替＋モード切替） */
     #control-subbar {
       background: #18181b;
       padding: 5px 8px;
       display: flex;
-      flex-direction: column;
-      gap: 5px;
+      gap: 6px;
+      align-items: stretch;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
     }
-    .subbar-row { display: flex; gap: 6px; align-items: stretch; }
     .mode-tab {
       flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
       padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
@@ -73,26 +72,23 @@
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
 
-    .opt-btn {
-      flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
-      padding: 6px 0; border-radius: 5px; font-size: 11px; font-weight: bold;
-      cursor: pointer; text-align: center;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .opt-btn.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; }
-
-    /* 延線方向 矢印ボタン */
+    /* 延線方向 矢印ボタン（大型） */
     #btn-dir {
-      flex: 0 0 68px;
+      flex: 0 0 74px;
       font-size: 22px;
       font-weight: 900;
       line-height: 1;
       padding: 0;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    #btn-dir.dir-fwd { background: #0d9488; border-color: #2dd4bf; color: #fff; }
-    #btn-dir.dir-rev { background: #ea580c; border-color: #fb923c; color: #fff; }
+    #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
+    #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 動画・カメラ領域（被りを全廃） */
+    /* 動画・カメラ領域 */
     #stage {
       position: relative;
       height: 165px;
@@ -107,16 +103,16 @@
       object-fit: cover;
     }
 
-    /* すっきりした判定枠（被り要素なし） */
+    /* 判定枠（上下幅をケーブルの太さに合わせるガイド枠） */
     #target-box {
       position: absolute;
-      top: 10%; left: 3%; width: 94%; height: 80%;
+      top: 15%; left: 3%; width: 94%; height: 70%;
       border: 2px solid #22c55e; border-radius: 6px;
       box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.4);
       z-index: 10; pointer-events: none;
     }
 
-    /* 診断パネル（映像枠の下へ独立移動） */
+    /* 診断パネル（映像枠の下へ独立配置） */
     #diag-panel {
       background: #0b1329;
       border-bottom: 1px solid #1e293b;
@@ -142,7 +138,7 @@
       display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
     }
 
-    /* 録画操作バー */
+    /* 録画操作バー（最長1分） */
     #rec-controls-bar {
       background: #18181b;
       padding: 6px 8px;
@@ -250,25 +246,19 @@
     </div>
   </div>
 
-  <!-- 設定・方向切替バー -->
+  <!-- 設定・方向切替バー（近接・引きボタンを撤去し、矢印＋モード切替に集約） -->
   <div id="control-subbar">
-    <div class="subbar-row">
-      <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
-      <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
-    </div>
-    <div class="subbar-row">
-      <button class="opt-btn dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
-      <button class="opt-btn" id="m-scale-close">近接 (2.5 px/mm)</button>
-      <button class="opt-btn active" id="m-scale-wide">引き (1.4 px/mm)</button>
-    </div>
+    <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
+    <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
+    <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
   </div>
 
-  <!-- 動画・カメラ領域（被り要素なし・すっきり表示） -->
+  <!-- 動画・カメラ領域 -->
   <div id="stage">
     <video id="v" playsinline webkit-playsinline muted loop></video>
     <canvas id="c-proc" style="display:none;"></canvas>
 
-    <!-- 判定枠（文字なし・純粋な枠線のみ） -->
+    <!-- 判定枠（上下幅ガイド） -->
     <div id="target-box"></div>
 
     <div id="error-banner">🔄 バック中...</div>
@@ -297,7 +287,7 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <!-- 録画操作バー -->
+  <!-- 録画操作バー（最長1分） -->
   <div id="rec-controls-bar">
     <button id="b-rec-start" class="rec-btn">🔴 録画 (最長1分)</button>
     <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 録画停止 (保存)</button>
@@ -345,7 +335,8 @@
 
   <script>
     var operationMode = 'MANUAL';
-    var scaleFactor = 1.4;
+    // 近接運用（約25〜30cm・判定枠の上下幅に収める）に固定
+    var scaleFactor = 2.5;
     var moveDirection = 1; // 1: ➡, -1: ⬅
     var totalDist = 0.0;
     var targetDist = 31.0;
@@ -410,8 +401,6 @@
     var errorBanner = document.getElementById('error-banner');
     var bManualStart = document.getElementById('b-manual-start');
     var btnDir = document.getElementById('btn-dir');
-    var mScaleClose = document.getElementById('m-scale-close');
-    var mScaleWide = document.getElementById('m-scale-wide');
     var vbPlay = document.getElementById('vb-play');
     var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
@@ -426,12 +415,12 @@
       if (moveDirection === 1) {
         moveDirection = -1;
         btnDir.innerText = '⬅';
-        btnDir.className = 'opt-btn dir-rev';
+        btnDir.className = 'dir-rev';
         speak('左向き、右からの延線に設定しました', 1);
       } else {
         moveDirection = 1;
         btnDir.innerText = '➡';
-        btnDir.className = 'opt-btn dir-fwd';
+        btnDir.className = 'dir-fwd';
         speak('右向き、左からの延線に設定しました', 1);
       }
       backwardStreak = 0;
@@ -570,17 +559,6 @@
       bManualStart.style.display = 'flex';
       resetAll();
       speak('手動運用モードです', 1);
-    });
-
-    mScaleClose.addEventListener('click', function() {
-      scaleFactor = 2.5;
-      mScaleClose.className = 'opt-btn active';
-      mScaleWide.className = 'opt-btn';
-    });
-    mScaleWide.addEventListener('click', function() {
-      scaleFactor = 1.4;
-      mScaleWide.className = 'opt-btn active';
-      mScaleClose.className = 'opt-btn';
     });
 
     bManualStart.addEventListener('click', function() {
@@ -792,6 +770,7 @@
       }
     });
 
+    // 逆再生改善
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
