@@ -84,22 +84,18 @@
     }
     .opt-btn.active { background: #8b5cf6; border-color: #a78bfa; color: #fff; }
 
-    /* 延線方向 矢印ボタン（大きく強調表示） */
+    /* 延線方向 矢印ボタン */
     #btn-dir {
-      flex: 0 0 68px; /* 幅を固定して大型化 */
-      font-size: 22px; /* 巨大矢印 */
+      flex: 0 0 68px;
+      font-size: 22px;
       font-weight: 900;
       line-height: 1;
       padding: 0;
     }
-    #btn-dir.dir-fwd {
-      background: #0d9488; border-color: #2dd4bf; color: #fff;
-    }
-    #btn-dir.dir-rev {
-      background: #ea580c; border-color: #fb923c; color: #fff;
-    }
+    #btn-dir.dir-fwd { background: #0d9488; border-color: #2dd4bf; color: #fff; }
+    #btn-dir.dir-rev { background: #ea580c; border-color: #fb923c; color: #fff; }
 
-    /* 動画・カメラ領域（コンパクト化） */
+    /* 動画・カメラ領域 */
     #stage {
       position: relative;
       height: 180px;
@@ -127,22 +123,6 @@
       background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 3px;
     }
 
-    /* 録画操作バー */
-    .rec-bar {
-      position: absolute; top: 6px; right: 6px;
-      display: flex; gap: 6px; align-items: center; z-index: 25;
-    }
-    .rec-btn {
-      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
-      padding: 5px 10px; border-radius: 5px; font-size: 11px; font-weight: bold;
-      cursor: pointer;
-    }
-    #rec-timer {
-      font-size: 11px; font-weight: bold; color: #ef4444;
-      background: rgba(0,0,0,0.8); padding: 3px 6px; border-radius: 4px;
-      display: none;
-    }
-
     /* 診断パネル */
     #diag-panel {
       position: absolute; bottom: 6px; left: 6px; right: 6px;
@@ -164,6 +144,28 @@
       color: #fff; padding: 6px 18px; border-radius: 20px;
       font-size: 13px; font-weight: bold; z-index: 35;
       display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
+    }
+
+    /* 録画操作バー（動画ウィンドウ直下へ移動） */
+    #rec-controls-bar {
+      background: #18181b;
+      padding: 6px 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border-bottom: 1px solid #27272a;
+      flex-shrink: 0;
+    }
+    .rec-btn {
+      flex: 1;
+      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
+      padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
+      cursor: pointer; text-align: center;
+    }
+    #rec-timer {
+      font-size: 12px; font-weight: bold; color: #ef4444;
+      background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px;
+      display: none; white-space: nowrap;
     }
 
     /* 動画コントローラー（テスト用） */
@@ -252,7 +254,7 @@
     </div>
   </div>
 
-  <!-- 設定・方向切替バー（巨大矢印アイコン仕様） -->
+  <!-- 設定・方向切替バー -->
   <div id="control-subbar">
     <div class="subbar-row">
       <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
@@ -273,13 +275,6 @@
     <div id="target-box">
       <span class="box-tag">🎯 判定枠</span>
       <span id="box-subtag" class="box-tag" style="color:#facc15;">手動モード</span>
-    </div>
-
-    <!-- 録画バー -->
-    <div class="rec-bar">
-      <button id="b-rec-start" class="rec-btn">🔴 録画 (最長15秒)</button>
-      <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止(保存)</button>
-      <span id="rec-timer">● REC 00s</span>
     </div>
 
     <!-- 診断パネル -->
@@ -306,6 +301,13 @@
         <button id="b-cam-retry" style="background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 5px; border: none; font-size: 13px; cursor: pointer;">再試行</button>
       </div>
     </div>
+  </div>
+
+  <!-- 録画操作バー（動画ウィンドウ直下に配置） -->
+  <div id="rec-controls-bar">
+    <button id="b-rec-start" class="rec-btn">🔴 録画 (最長1分)</button>
+    <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 録画停止 (保存)</button>
+    <span id="rec-timer">● REC 00s / 60s</span>
   </div>
 
   <!-- 動画コントローラー（テスト用） -->
@@ -350,7 +352,7 @@
   <script>
     var operationMode = 'MANUAL';
     var scaleFactor = 1.4;
-    var moveDirection = 1; // 1: ➡ (左から右), -1: ⬅ (右から左)
+    var moveDirection = 1; // 1: ➡, -1: ⬅
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
@@ -426,7 +428,7 @@
     var camErrorMsg = document.getElementById('cam-error-msg');
     var bCamRetry = document.getElementById('b-cam-retry');
 
-    // 方向切替（大きな矢印「➡」／「⬅」のみ表示）
+    // 方向切替
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
         moveDirection = -1;
@@ -799,6 +801,7 @@
       }
     });
 
+    // 逆再生改善
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
@@ -1093,14 +1096,14 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // --- 録画モジュール ---
+    // --- 録画モジュール（最長1分・即時保存・メモリ破棄） ---
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
       var recTimerInterval = null;
       var autoStopTimeout = null;
       var recSec = 0;
-      var MAX_REC_SEC = 15;
+      var MAX_REC_SEC = 60; // 最長1分（60秒）
 
       var bRecStart = document.getElementById('b-rec-start');
       var bRecStop = document.getElementById('b-rec-stop');
@@ -1154,14 +1157,15 @@
         mediaRecorder.start(1000);
 
         bRecStart.style.display = 'none';
-        bRecStop.style.display = 'inline-block';
-        txtRecTimer.style.display = 'inline-block';
+        bRecStop.style.display = 'block';
+        txtRecTimer.style.display = 'block';
         recSec = 0;
-        txtRecTimer.innerText = '● REC 00s';
+        txtRecTimer.innerText = '● REC 00s / ' + MAX_REC_SEC + 's';
 
         recTimerInterval = setInterval(function() {
           recSec++;
-          txtRecTimer.innerText = '● REC ' + (recSec < 10 ? '0' + recSec : recSec) + 's';
+          var secStr = recSec < 10 ? '0' + recSec : recSec;
+          txtRecTimer.innerText = '● REC ' + secStr + 's / ' + MAX_REC_SEC + 's';
         }, 1000);
 
         autoStopTimeout = setTimeout(function() {
@@ -1176,7 +1180,7 @@
       function cleanupRecUI() {
         if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
         if (autoStopTimeout) { clearTimeout(autoStopTimeout); autoStopTimeout = null; }
-        bRecStart.style.display = 'inline-block';
+        bRecStart.style.display = 'block';
         bRecStop.style.display = 'none';
         txtRecTimer.style.display = 'none';
       }
