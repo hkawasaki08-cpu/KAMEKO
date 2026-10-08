@@ -36,7 +36,6 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* ダッシュボード */
     #dash-container {
       background: #111827;
       padding: 8px 8px 6px;
@@ -55,7 +54,6 @@
     .card-unit { font-size: 12px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 11px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* 設定・方向バー */
     #control-subbar {
       background: #18181b;
       padding: 5px 8px;
@@ -87,7 +85,6 @@
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 動画・カメラ領域 */
     #stage {
       position: relative;
       height: 165px;
@@ -110,7 +107,6 @@
       z-index: 10; pointer-events: none;
     }
 
-    /* 診断パネル（白・黄比率デバッグ表示付き） */
     #diag-panel {
       background: #0b1329;
       border-bottom: 1px solid #1e293b;
@@ -136,7 +132,6 @@
       display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
     }
 
-    /* 録画バー */
     #rec-controls-bar {
       background: #18181b;
       padding: 6px 8px;
@@ -158,7 +153,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 動画コントローラー */
     #v-bar {
       background: #0f172a; border-bottom: 1px solid #1e293b;
       padding: 5px 8px; display: none; flex-direction: column; gap: 4px;
@@ -178,7 +172,6 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
-    /* メイン操作ボタン */
     footer {
       background: #18181b;
       padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
@@ -201,7 +194,6 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* スピナー / モーダル */
     .overlay-modal {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(0, 0, 0, 0.75); display: flex; flex-direction: column;
@@ -322,8 +314,8 @@
 
   <script>
     var operationMode = 'MANUAL';
-    var scaleFactor = 2.5; // 初期近接スケール (px/mm)
-    var moveDirection = 1; // 1: ➡, -1: ⬅
+    var scaleFactor = 2.5;
+    var moveDirection = 1;
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
@@ -332,7 +324,6 @@
     var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
-    // 自動検知ステート（白抜けで0m、黄1で1m、黄2で2m確定）
     var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
@@ -787,16 +778,16 @@
       for (var x = 0; x < PW; x++) { sumEdge += Math.abs(curProf[x]); }
       var avgEdge = sumEdge / PW;
 
-      if (avgLum < 35) {
+      if (avgLum < 30) {
         diagMsg.innerText = "❌ 光量不足（暗すぎます）";
         diagMsg.style.color = "#ef4444";
-      } else if (avgLum > 225) {
+      } else if (avgLum > 230) {
         diagMsg.innerText = "❌ 光量過多（白飛びしています）";
         diagMsg.style.color = "#ef4444";
-      } else if (glareCount > (PW * PH * 0.10)) {
+      } else if (glareCount > (PW * PH * 0.15)) {
         diagMsg.innerText = "⚠️ 照り返し過多（反射）";
         diagMsg.style.color = "#facc15";
-      } else if (avgEdge < 1.6) {
+      } else if (avgEdge < 1.4) {
         diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）";
         diagMsg.style.color = "#facc15";
       } else {
@@ -821,7 +812,6 @@
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    // 解析ループ（60秒動画規格：白抜け0m ➔ 1m黄 ➔ 2m黄 自動補正連携）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -856,7 +846,6 @@
           var glareCount = 0;
           var sumLumTotal = 0;
 
-          // 1. 実物動画のテープ色相判定
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -865,23 +854,29 @@
               var g = imgData[idx+1];
               var b = imgData[idx+2];
 
-              // 白テープ（シワ・陰影対応）
-              if (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 25 && Math.abs(g - b) < 25) {
-                whiteCountTotal++;
-              }
-              if (r > 240 && g > 240 && b > 240) glareCount++;
-              // 黄色テープ
-              if (r > 150 && g > 140 && b < 115 && (r + g - 2 * b) > 90) {
-                yellowCountTotal++;
-              }
-
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
               sumG += lum;
               sumLumTotal += lum;
+
+              // 【改善：白テープ判定】
+              // シース(暗部)に対して十分に明るく(輝度105以上)、照明や反射の色被りを許容
+              if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) {
+                whiteCountTotal++;
+              }
+
+              // 【グレア判定】
+              if (lum > 235) glareCount++;
+
+              // 【改善：黄色テープ判定】
+              // 現場照明下での黄テープ（赤・緑成分が青より明確に高い条件）
+              if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) {
+                yellowCountTotal++;
+              }
             }
             rawProf[x] = sumG / PH;
           }
 
+          // 一次微分エッジプロファイル（ゼロアロケーション）
           for (var x = 0; x < PW; x++) {
             if (x === 0) {
               curProf[x] = rawProf[1] - rawProf[0];
@@ -897,10 +892,9 @@
           var yellowRatio = yellowCountTotal / totalPixels;
           runDiagnostics(imgData, sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
 
-          // 2. 自動検知（60秒動画の正解シーケンス連携）
           if (operationMode === 'AUTO') {
-            var isWhitePresent = whiteRatio > 0.10;
-            var isYellowPresent = yellowRatio > 0.08;
+            var isWhitePresent = whiteRatio > 0.08;
+            var isYellowPresent = yellowRatio > 0.06;
 
             if (autoState === 'WAIT_HEAD_INSIDE') {
               if (isWhitePresent) {
@@ -913,8 +907,7 @@
                 whiteFrameCount = 0;
               }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              // 白テープ抜け完了 ➔ 0.00m リセット＆積算開始
-              if (whiteRatio < 0.05) {
+              if (whiteRatio < 0.04) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0;
                 totalPxSinceStart = 0.0;
@@ -927,11 +920,10 @@
             } else if (autoState === 'TRACKING_WAIT_YEL1') {
               if (isYellowPresent) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
-                // 1本目黄色テープ抜け完了 ➔ 1.00m 地点で1次校正
+              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 450) {
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
-                scaleFactor = totalPxSinceStart / 1000.0; // 実測スケール確定
+                scaleFactor = totalPxSinceStart / 1000.0;
                 totalDist = 1.0;
                 statusBadge.className = 'cal1';
                 statusBadge.innerText = '1次校正済 (1.00m / 2m黄待ち)';
@@ -940,11 +932,10 @@
             } else if (autoState === 'TRACKING_WAIT_YEL2') {
               if (isYellowPresent) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
-                // 2本目黄色テープ抜け完了 ➔ 2.00m 地点で本校正
+              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1500)) {
                 isInsideYellow = false;
                 autoState = 'TRACKING_FINAL';
-                scaleFactor = totalPxSinceStart / 2000.0; // 最終最高精度スケール確定
+                scaleFactor = totalPxSinceStart / 2000.0;
                 totalDist = 2.0;
                 statusBadge.className = 'cal2';
                 statusBadge.innerText = '本校正完了 (2.00m / 最高精度)';
@@ -953,7 +944,6 @@
             }
           }
 
-          // 3. 相関トラッキング
           var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
@@ -1025,7 +1015,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // --- 録画モジュール（最長1分） ---
+    // 録画機能 (最長1分 / 即時ダウンロード / メモリ解放)
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
