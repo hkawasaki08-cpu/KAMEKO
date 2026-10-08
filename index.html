@@ -211,7 +211,6 @@
     .btn-row-bottom {
       display: flex;
       gap: 5px;
-      height: 36px;
       align-items: stretch;
     }
     
@@ -229,41 +228,53 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    .col-left {
-      flex: 0 0 74px !important;
-      padding: 0 !important;
+    /* 【グリッド同期】
+       左列: 測定開始 ⇄ 0mリセット（倍高58px）
+       中列: 手動スタート ⇄ 目標m
+       右列: 音声 ⇄ 動画（固定幅68px）
+    */
+    .col-left-main {
+      flex: 1.6 !important;
+      min-height: 58px;
     }
-    .col-center {
+    .col-center-sub {
       flex: 1 !important;
+      min-height: 58px;
     }
-    .col-right {
+    .col-right-fixed {
       flex: 0 0 68px !important;
+      min-height: 58px;
       padding: 0 !important;
     }
 
-    #b-manual-start {
-      min-height: 58px;
-      font-size: 10px;
-      line-height: 1.2;
-    }
+    /* 測定開始ボタン */
     #b-pause {
-      min-height: 58px;
       font-size: 16px;
       font-weight: 900;
       box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
     }
+
+    /* 0mリセットボタン（倍高化） */
+    #b-zero {
+      font-size: 14px;
+      font-weight: 900;
+      color: #f87171;
+    }
+
+    #b-manual-start {
+      font-size: 11px;
+      line-height: 1.2;
+    }
+    #b-set-target {
+      font-size: 13px;
+    }
     #b-mic {
-      min-height: 58px;
       font-size: 11px;
       flex-direction: column;
       gap: 2px;
     }
-
-    .btn-row-bottom button,
-    .btn-row-bottom label.btn {
+    #btn-video-label {
       font-size: 12px;
-      height: 36px;
-      min-height: 36px;
     }
   </style>
 </head>
@@ -339,15 +350,17 @@
   </div>
 
   <footer>
+    <!-- 上段：左(測定開始 ▶) - 中(手動スタート) - 右(音声) -->
     <div class="btn-row-top">
-      <button id="b-manual-start" class="purple col-left" style="display:none;">▶ 手動<br>スタート</button>
-      <button id="b-pause" class="green col-center">測定開始 ▶</button>
-      <button id="b-mic" class="col-right" style="background:#2563eb;">🎤<br>音声</button>
+      <button id="b-pause" class="green col-left-main">測定開始 ▶</button>
+      <button id="b-manual-start" class="purple col-center-sub" style="display:none;">▶ 手動<br>スタート</button>
+      <button id="b-mic" class="col-right-fixed" style="background:#2563eb;">🎤<br>音声</button>
     </div>
+    <!-- 下段：左(0mリセット・倍高) - 中(目標m) - 右(動画) -->
     <div class="btn-row-bottom">
-      <button id="b-zero" class="col-left" style="background:#334155; color:#f87171;">0mリセット</button>
-      <button id="b-set-target" class="col-center" style="background:#334155;">目標m</button>
-      <label class="btn col-right" id="btn-video-label" for="f-video" style="background:#1e293b; border-color:#475569;">動画</label>
+      <button id="b-zero" class="col-left-main" style="background:#334155;">0mリセット</button>
+      <button id="b-set-target" class="col-center-sub" style="background:#334155;">目標m</button>
+      <label class="btn col-right-fixed" id="btn-video-label" for="f-video" style="background:#1e293b; border-color:#475569;">動画</label>
       <input type="file" id="f-video" accept="video/*">
     </div>
   </footer>
@@ -356,9 +369,8 @@
     var operationMode = 'AUTO';
     var scaleFactor = 2.675;
 
-    // 方向自動判別フラグ（0: 未確定自動判定中, 1: 右向き確定, -1: 左向き確定）
     var moveDirection = 0;
-    var autoDirAccumPx = 0.0; // 初動ベクトル積算用
+    var autoDirAccumPx = 0.0;
 
     var totalDist = 0.0;
     var targetDist = 31.0;
@@ -426,7 +438,6 @@
     var bSpdUp = document.getElementById('b-spd-up');
     var txtSpdVal = document.getElementById('txt-spd-val');
 
-    // 方向ボタントグル（手動上書き）
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
         setDirection(-1, true);
@@ -647,7 +658,7 @@
       isPaused = paused;
       if (isPaused) {
         stopReverse();
-        bPause.className = 'green col-center';
+        bPause.className = 'green col-left-main';
         bPause.innerText = '測定開始 ▶';
         vbPlay.innerText = '再生 ▶';
         txtSpeed.innerText = "0.0";
@@ -656,7 +667,7 @@
         errorBanner.style.display = 'none';
         if (!v.paused) v.pause();
       } else {
-        bPause.className = 'orange col-center';
+        bPause.className = 'orange col-left-main';
         bPause.innerText = '一時停止 ⏸';
         vbPlay.innerText = '一時停止 ⏸';
         hasPrevProf = false;
@@ -685,7 +696,6 @@
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
 
-      // 方向自動判定をリセット
       moveDirection = 0;
       autoDirAccumPx = 0.0;
       btnDir.innerText = '🔄';
@@ -988,21 +998,17 @@
 
             var rawShiftPx = bestS * (swSrc / PW) / downScale;
 
-            // 【方法A：初動ベクトルの自動判定ロジック】
             if (moveDirection === 0) {
               if (Math.abs(rawShiftPx) > 0.5) {
                 autoDirAccumPx += rawShiftPx;
                 if (autoDirAccumPx > 25.0) {
-                  // 右へ累計25px流れたら右向き確定
                   setDirection(1, false);
                 } else if (autoDirAccumPx < -25.0) {
-                  // 左へ累計25px流れたら左向き確定
                   setDirection(-1, false);
                 }
               }
             }
 
-            // 方向が確定している場合のみ積算
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
 
