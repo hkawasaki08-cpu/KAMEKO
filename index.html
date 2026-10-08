@@ -110,7 +110,7 @@
       z-index: 10; pointer-events: none;
     }
 
-    /* 診断パネル */
+    /* 診断パネル（白・黄比率デバッグ表示付き） */
     #diag-panel {
       background: #0b1329;
       border-bottom: 1px solid #1e293b;
@@ -122,7 +122,7 @@
     }
     #diag-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
     #diag-msg { font-size: 11px; font-weight: bold; color: #4ade80; }
-    #diag-sub { font-size: 9px; color: #94a3b8; }
+    #diag-sub { font-size: 9px; color: #94a3b8; font-variant-numeric: tabular-nums; }
     #diag-canvas {
       width: 100px; height: 22px; border: 1px solid #334155;
       border-radius: 3px; background: #000; display: block;
@@ -322,7 +322,7 @@
 
   <script>
     var operationMode = 'MANUAL';
-    var scaleFactor = 2.5; // 近接固定
+    var scaleFactor = 2.5; // 初期近接スケール (px/mm)
     var moveDirection = 1; // 1: ➡, -1: ⬅
     var totalDist = 0.0;
     var targetDist = 31.0;
@@ -332,6 +332,7 @@
     var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
+    // 自動検知ステート（白抜けで0m、黄1で1m、黄2で2m確定）
     var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
@@ -778,7 +779,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    function runDiagnostics(imgData, avgLum, glareCount, whiteRatioPct, now) {
+    function runDiagnostics(imgData, avgLum, glareCount, whiteRatioPct, yellowRatioPct, now) {
       if (now - lastDiagTime < 250) return;
       lastDiagTime = now;
 
@@ -802,7 +803,7 @@
         diagMsg.innerText = "🟢 測定環境：良好";
         diagMsg.style.color = "#4ade80";
       }
-      diagSub.innerText = "エッジ強度: " + avgEdge.toFixed(1) + " | 白比率: " + whiteRatioPct.toFixed(1) + "%";
+      diagSub.innerText = "W(白): " + whiteRatioPct.toFixed(1) + "% | Y(黄): " + yellowRatioPct.toFixed(1) + "% | エッジ: " + avgEdge.toFixed(1);
 
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
@@ -820,7 +821,7 @@
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    // 解析ループ（白テープしきい値緩和・最適化版）
+    // 解析ループ（60秒動画規格：白抜け0m ➔ 1m黄 ➔ 2m黄 自動補正連携）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -855,7 +856,7 @@
           var glareCount = 0;
           var sumLumTotal = 0;
 
-          // 1. 現場の粉塵・陰影に対応した白テープ判定（RGB > 165）
+          // 1. 実物動画のテープ色相判定
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -864,12 +865,15 @@
               var g = imgData[idx+1];
               var b = imgData[idx+2];
 
-              // 汚れや影を許容した白判定
+              // 白テープ（シワ・陰影対応）
               if (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 25 && Math.abs(g - b) < 25) {
                 whiteCountTotal++;
               }
               if (r > 240 && g > 240 && b > 240) glareCount++;
-              if (r > 155 && g > 145 && b < 110 && (r + g - 2 * b) > 95) yellowCountTotal++;
+              // 黄色テープ
+              if (r > 150 && g > 140 && b < 115 && (r + g - 2 * b) > 90) {
+                yellowCountTotal++;
+              }
 
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
               sumG += lum;
@@ -890,26 +894,16 @@
 
           var totalPixels = PW * PH;
           var whiteRatio = whiteCountTotal / totalPixels;
-          runDiagnostics(imgData, sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, now);
+          var yellowRatio = yellowCountTotal / totalPixels;
+          runDiagnostics(imgData, sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
 
-          // 2. 自動検知（しきい値緩和版）
+          // 2. 自動検知（60秒動画の正解シーケンス連携）
           if (operationMode === 'AUTO') {
-            var isWhitePresent = whiteRatio > 0.12; // 12%以上で白テープ検出
-            var isYellowPresent = (yellowCountTotal / totalPixels) > 0.10;
-
-            // 進入端（40px幅）の白判定
-            var entryWhiteSum = 0;
-            var entryWidth = 40;
-            if (moveDirection === 1) {
-              for (var ex = 0; ex < entryWidth; ex++) { if (rawProf[ex] > 160) entryWhiteSum++; }
-            } else {
-              for (var ex = PW - entryWidth; ex < PW; ex++) { if (rawProf[ex] > 160) entryWhiteSum++; }
-            }
-            var isEntryWhite = (entryWhiteSum / entryWidth) > 0.30;
+            var isWhitePresent = whiteRatio > 0.10;
+            var isYellowPresent = yellowRatio > 0.08;
 
             if (autoState === 'WAIT_HEAD_INSIDE') {
-              // 全体の白比率が十分、または進入端が白ければヘッド進入とみなす
-              if (isWhitePresent || (whiteRatio > 0.08 && isEntryWhite)) {
+              if (isWhitePresent) {
                 whiteFrameCount++;
                 if (whiteFrameCount >= 2) {
                   autoState = 'WAIT_HEAD_TRAILING';
@@ -919,8 +913,8 @@
                 whiteFrameCount = 0;
               }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              // 白テープが枠を抜けきった瞬間（白比率が6%未満に低下）
-              if (whiteRatio < 0.06) {
+              // 白テープ抜け完了 ➔ 0.00m リセット＆積算開始
+              if (whiteRatio < 0.05) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0;
                 totalPxSinceStart = 0.0;
@@ -934,24 +928,26 @@
               if (isYellowPresent) {
                 isInsideYellow = true;
               } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
+                // 1本目黄色テープ抜け完了 ➔ 1.00m 地点で1次校正
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
-                scaleFactor = totalPxSinceStart / 1000.0;
+                scaleFactor = totalPxSinceStart / 1000.0; // 実測スケール確定
                 totalDist = 1.0;
                 statusBadge.className = 'cal1';
-                statusBadge.innerText = '1次校正済 (2m黄待ち)';
+                statusBadge.innerText = '1次校正済 (1.00m / 2m黄待ち)';
                 speak('1メートル通過、1次校正完了', 1);
               }
             } else if (autoState === 'TRACKING_WAIT_YEL2') {
               if (isYellowPresent) {
                 isInsideYellow = true;
               } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
+                // 2本目黄色テープ抜け完了 ➔ 2.00m 地点で本校正
                 isInsideYellow = false;
                 autoState = 'TRACKING_FINAL';
-                scaleFactor = totalPxSinceStart / 2000.0;
+                scaleFactor = totalPxSinceStart / 2000.0; // 最終最高精度スケール確定
                 totalDist = 2.0;
                 statusBadge.className = 'cal2';
-                statusBadge.innerText = '本校正完了 (最高精度)';
+                statusBadge.innerText = '本校正完了 (2.00m / 最高精度)';
                 speak('2メートル通過、本校正完了しました', 1);
               }
             }
@@ -1029,7 +1025,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 録画モジュール
+    // --- 録画モジュール（最長1分） ---
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
