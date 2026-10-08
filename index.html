@@ -90,7 +90,7 @@
     #stage {
       position: relative;
       flex: 1;
-      min-height: 85px;
+      min-height: 80px;
       max-height: 155px;
       width: 100%;
       background: #000;
@@ -133,9 +133,10 @@
       border-radius: 2px; background: #000; display: block;
     }
 
+    /* 【改修】録画バー：ボタン高さを再生ボタンと同じ34pxに統一 */
     #rec-controls-bar {
       background: #18181b;
-      padding: 3px 6px;
+      padding: 4px 6px;
       display: flex;
       gap: 6px;
       align-items: center;
@@ -144,51 +145,61 @@
       flex-shrink: 0;
     }
     .rec-btn {
-      flex: 0 0 25%;
-      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
-      padding: 4px 0; border-radius: 4px; font-size: 10px; font-weight: bold;
+      flex: 0 0 28%;
+      background: #b91c1c; color: #fff; border: 1.5px solid #ef4444;
+      padding: 0; border-radius: 6px; font-size: 12px; font-weight: 900;
       cursor: pointer; text-align: center; line-height: 1;
+      height: 34px; min-height: 34px;
+      display: flex; align-items: center; justify-content: center;
     }
     #rec-timer {
-      font-size: 10px; font-weight: bold; color: #ef4444;
-      background: rgba(0,0,0,0.8); padding: 2px 4px; border-radius: 3px;
+      font-size: 11px; font-weight: bold; color: #ef4444;
+      background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px;
       display: none; white-space: nowrap;
     }
 
+    /* 動画コントローラー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 3px 6px;
+      padding: 4px 6px;
       display: none;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       flex-shrink: 0;
     }
-    .v-row { display: flex; gap: 4px; align-items: center; }
+    .v-row { display: flex; gap: 5px; align-items: center; }
+    
+    /* 下段コントローラー（再生ボタン等）の高さ: 34px */
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
-      border: 1px solid #475569; padding: 4px 0; border-radius: 4px;
-      font-size: 10px; font-weight: bold; text-align: center; cursor: pointer;
-      line-height: 1; min-height: 22px;
+      border: 1.5px solid #475569; padding: 0; border-radius: 6px;
+      font-size: 11px; font-weight: bold; text-align: center; cursor: pointer;
+      line-height: 1; height: 34px; min-height: 34px;
       display: flex; align-items: center; justify-content: center;
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
 
+    /* 【改修】0.5ボタンおよび中央表示の高さを再生ボタンと同じ34pxに統一 */
     .spd-step-btn {
-      flex: 0 0 54px;
+      flex: 0 0 58px;
       background: #1e293b; color: #38bdf8;
-      border: 1px solid #0284c7; border-radius: 4px;
-      font-size: 11px; font-weight: 900;
-      padding: 3px 0; cursor: pointer; text-align: center;
-      line-height: 1;
+      border: 1.5px solid #0284c7; border-radius: 6px;
+      font-size: 12px; font-weight: 900;
+      cursor: pointer; text-align: center;
+      line-height: 1; height: 34px; min-height: 34px;
+      display: flex; align-items: center; justify-content: center;
     }
     .spd-step-btn:active { background: #0284c7; color: #fff; }
+    
     #txt-spd-val {
       flex: 1; background: #000; color: #4ade80;
-      border: 1px solid #334155; border-radius: 4px;
-      font-size: 11px; font-weight: 900;
-      padding: 3px 0; text-align: center; cursor: pointer;
+      border: 1.5px solid #334155; border-radius: 6px;
+      font-size: 13px; font-weight: 900;
+      text-align: center; cursor: pointer;
       font-variant-numeric: tabular-nums; line-height: 1;
+      height: 34px; min-height: 34px;
+      display: flex; align-items: center; justify-content: center;
     }
 
     footer {
@@ -228,12 +239,10 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 【グリッド同期 ＆ 中央カラム拡大】 */
     .col-left-main {
       flex: 1.3 !important;
       min-height: 58px;
     }
-    /* 「手動スタート」と「目標m」の中央カラムを大幅拡大（flex: 1.6） */
     .col-center-wide {
       flex: 1.6 !important;
       min-height: 58px;
@@ -244,34 +253,26 @@
       padding: 0 !important;
     }
 
-    /* 測定開始ボタン */
     #b-pause {
       font-size: 15px;
       font-weight: 900;
       box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
     }
-
-    /* 0mリセットボタン */
     #b-zero {
       font-size: 14px;
       font-weight: 900;
       color: #f87171;
     }
-
-    /* 手動スタートボタン（拡大・強調） */
     #b-manual-start {
       font-size: 13px;
       font-weight: 900;
       line-height: 1.3;
     }
-
-    /* 目標メートルボタン（拡大・強調） */
     #b-set-target {
       font-size: 16px;
       font-weight: 900;
       letter-spacing: 0.5px;
     }
-
     #b-mic {
       font-size: 11px;
       flex-direction: column;
@@ -328,20 +329,22 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
+  <!-- 【改修】録画バー：高さ34pxで再生ボタンと統一 -->
   <div id="rec-controls-bar">
     <span id="rec-timer">● REC 00s / 60s</span>
     <button id="b-rec-start" class="rec-btn">🔴 録画</button>
     <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止</button>
   </div>
 
+  <!-- 【改修】動画コントローラー：±0.5ボタンと中央表示を高さ34pxに統一 -->
   <div id="v-bar">
     <div class="v-row">
-      <span style="font-size: 9px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
+      <span style="font-size: 10px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
       <button class="spd-step-btn" id="b-spd-down">➖ -0.5</button>
       <div id="txt-spd-val" title="タップで等速(1.0x)/停止(0.0x)切替">+1.0x</div>
       <button class="spd-step-btn" id="b-spd-up">➕ +0.5</button>
     </div>
-    <div style="display:flex; justify-content:space-between; font-size:8px; color:#94a3b8; margin: 1px 0;">
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8; margin: 2px 0 1px 0;">
       <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
@@ -354,13 +357,11 @@
   </div>
 
   <footer>
-    <!-- 上段：測定開始 ➔ 手動スタート（サイズ拡大） ➔ 音声 -->
     <div class="btn-row-top">
       <button id="b-pause" class="green col-left-main">測定開始 ▶</button>
       <button id="b-manual-start" class="purple col-center-wide" style="display:none;">▶ 手動スタート</button>
       <button id="b-mic" class="col-right-fixed" style="background:#2563eb;">🎤<br>音声</button>
     </div>
-    <!-- 下段：0mリセット ➔ 目標m（サイズ拡大） ➔ 動画 -->
     <div class="btn-row-bottom">
       <button id="b-zero" class="col-left-main" style="background:#334155;">0mリセット</button>
       <button id="b-set-target" class="col-center-wide" style="background:#334155;">目標m</button>
@@ -1114,7 +1115,7 @@
 
         mediaRecorder.start(1000);
         bRecStart.style.display = 'none';
-        bRecStop.style.display = 'block';
+        bRecStop.style.display = 'flex';
         txtRecTimer.style.display = 'block';
         recSec = 0;
         recTimerInterval = setInterval(function() {
@@ -1134,7 +1135,7 @@
       function cleanupRecUI() {
         if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
         if (autoStopTimeout) { clearTimeout(autoStopTimeout); autoStopTimeout = null; }
-        bRecStart.style.display = 'block';
+        bRecStart.style.display = 'flex';
         bRecStop.style.display = 'none';
         txtRecTimer.style.display = 'none';
       }
