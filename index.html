@@ -17,7 +17,6 @@
       flex-direction: column;
     }
     
-    /* 1. ヘッダー */
     header {
       background: #18181b;
       padding: 4px 10px;
@@ -38,7 +37,6 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* 2. ダッシュボード */
     #dash-container {
       background: #111827;
       padding: 4px 6px;
@@ -57,7 +55,6 @@
     .card-unit { font-size: 10px; color: #9ca3af; margin-left: 1px; }
     .card-sub { font-size: 8px; color: #38bdf8; font-weight: bold; margin-top: 1px; }
 
-    /* 3. モード切替バー */
     #control-subbar {
       background: #18181b;
       padding: 4px 6px;
@@ -87,7 +84,6 @@
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 4. 映像ステージ（可変伸縮エリア：空きスペースに完全追従） */
     #stage {
       position: relative;
       flex: 1;
@@ -117,7 +113,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 5. 診断パネル */
     #diag-panel {
       background: #0b1329;
       border-bottom: 1px solid #1e293b;
@@ -135,7 +130,6 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 6. 録画バー */
     #rec-controls-bar {
       background: #18181b;
       padding: 3px 6px;
@@ -156,33 +150,44 @@
       display: none; white-space: nowrap;
     }
 
-    /* 7. 動画コントローラーバー */
+    /* 動画コントローラーバー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 2px 6px;
+      padding: 3px 6px;
       display: none;
       flex-direction: column;
-      gap: 2px;
+      gap: 3px;
       flex-shrink: 0;
     }
-    .v-row { display: flex; gap: 3px; align-items: center; }
+    .v-row { display: flex; gap: 4px; align-items: center; }
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
-      border: 1px solid #475569; padding: 3px 0; border-radius: 3px;
-      font-size: 9px; font-weight: bold; text-align: center; cursor: pointer;
-      line-height: 1;
+      border: 1px solid #475569; padding: 4px 0; border-radius: 4px;
+      font-size: 10px; font-weight: bold; text-align: center; cursor: pointer;
+      line-height: 1; min-height: 22px;
+      display: flex; align-items: center; justify-content: center;
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
-    .speed-btn {
-      flex: 1; background: #1e293b; color: #94a3b8;
-      border: 1px solid #334155; padding: 2px 0; border-radius: 2px;
-      font-size: 8px; font-weight: bold; text-align: center; cursor: pointer;
+
+    /* 速度コントロール専用スタイル */
+    .spd-step-btn {
+      flex: 0 0 54px;
+      background: #1e293b; color: #38bdf8;
+      border: 1px solid #0284c7; border-radius: 4px;
+      font-size: 11px; font-weight: 900;
+      padding: 3px 0; cursor: pointer; text-align: center;
       line-height: 1;
     }
-    .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
+    .spd-step-btn:active { background: #0284c7; color: #fff; }
+    #txt-spd-val {
+      flex: 1; background: #000; color: #4ade80;
+      border: 1px solid #334155; border-radius: 4px;
+      font-size: 11px; font-weight: 900;
+      padding: 3px 0; text-align: center; cursor: pointer;
+      font-variant-numeric: tabular-nums; line-height: 1;
+    }
 
-    /* 8. フッター（下部操作ボタン：画面下部に常時固定） */
     footer {
       background: #18181b;
       padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 2px));
@@ -261,24 +266,22 @@
     <span id="rec-timer">● REC 00s / 60s</span>
   </div>
 
+  <!-- 動画コントローラー -->
   <div id="v-bar">
     <div class="v-row">
-      <span style="font-size: 8px; color: #38bdf8; min-width: 25px; font-weight: bold;">速度:</span>
-      <button class="speed-btn" data-speed="0.25">0.25x</button>
-      <button class="speed-btn" data-speed="0.5">0.5x</button>
-      <button class="speed-btn active" data-speed="1.0">1.0x</button>
-      <button class="speed-btn" data-speed="1.5">1.5x</button>
-      <button class="speed-btn" data-speed="2.0">2.0x</button>
+      <span style="font-size: 9px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
+      <button class="spd-step-btn" id="b-spd-down">➖ -0.5</button>
+      <div id="txt-spd-val" title="タップで等速(1.0x)/停止(0.0x)切替">1.0x</div>
+      <button class="spd-step-btn" id="b-spd-up">➕ +0.5</button>
     </div>
     <div style="display:flex; justify-content:space-between; font-size:8px; color:#94a3b8; margin: 1px 0;">
       <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
     <div class="v-row">
-      <button class="v-btn" id="vb-b1">-1秒</button>
+      <button class="v-btn" id="vb-b1">-0.1秒</button>
       <button class="v-btn" id="vb-rev">◀ 逆転</button>
       <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
-      <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
       <button class="v-btn" id="vb-f1">+0.1秒</button>
     </div>
   </div>
@@ -307,6 +310,8 @@
     var isRunning = false;
     var isPaused = false;
     var isManualTracking = false;
+
+    // 速度コントロール変数（範囲: -3.0 〜 +5.0）
     var currentPlaybackRate = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
@@ -330,7 +335,7 @@
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
 
-    // Safariクラッシュ防止：最大640pxにダウンスケールする中間Canvas
+    // Safariクラッシュ防止中間Canvas
     var downCanvas = document.createElement('canvas');
     var downCtx = downCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
     var MAX_DOWN_WIDTH = 640;
@@ -363,6 +368,10 @@
     var vbPlay = document.getElementById('vb-play');
     var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
+
+    var bSpdDown = document.getElementById('b-spd-down');
+    var bSpdUp = document.getElementById('b-spd-up');
+    var txtSpdVal = document.getElementById('txt-spd-val');
 
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
@@ -504,6 +513,67 @@
       vbRev.classList.remove('active');
     }
 
+    function startReverse(speedMultiplier) {
+      stopReverse();
+      v.pause();
+      isReversing = true;
+      vbRev.classList.add('active');
+      setPauseState(false);
+
+      if (v.currentTime <= 0.05 && v.duration > 0) {
+        v.currentTime = v.duration - 0.05;
+      }
+
+      var mult = Math.abs(speedMultiplier || 1.0);
+      var stepSec = 0.05 * mult;
+      reverseInterval = setInterval(function() {
+        if (v.currentTime <= stepSec) {
+          v.currentTime = 0;
+          stopReverse();
+          setPauseState(true);
+        } else {
+          v.currentTime -= stepSec;
+        }
+      }, 50);
+    }
+
+    // 速度変更ルーチン（-3.0 〜 +5.0）
+    function applyPlaybackRate(rate) {
+      currentPlaybackRate = Math.round(rate * 10) / 10;
+      if (currentPlaybackRate > 5.0) currentPlaybackRate = 5.0;
+      if (currentPlaybackRate < -3.0) currentPlaybackRate = -3.0;
+
+      txtSpdVal.innerText = (currentPlaybackRate >= 0 ? '+' : '') + currentPlaybackRate.toFixed(1) + 'x';
+
+      if (currentPlaybackRate > 0) {
+        stopReverse();
+        v.playbackRate = currentPlaybackRate;
+        if (isPaused) setPauseState(false);
+      } else if (currentPlaybackRate === 0) {
+        stopReverse();
+        setPauseState(true);
+      } else {
+        // 負の値：可変逆再生
+        startReverse(currentPlaybackRate);
+      }
+    }
+
+    bSpdDown.addEventListener('click', function() {
+      applyPlaybackRate(currentPlaybackRate - 0.5);
+    });
+
+    bSpdUp.addEventListener('click', function() {
+      applyPlaybackRate(currentPlaybackRate + 0.5);
+    });
+
+    txtSpdVal.addEventListener('click', function() {
+      if (currentPlaybackRate === 0) {
+        applyPlaybackRate(1.0);
+      } else {
+        applyPlaybackRate(0.0);
+      }
+    });
+
     function setPauseState(paused) {
       isPaused = paused;
       if (isPaused) {
@@ -522,7 +592,12 @@
         vbPlay.innerText = '一時停止 ⏸';
         hasPrevProf = false;
         backwardStreak = 0;
-        if (v.paused && !isReversing) v.play().catch(function(){});
+        if (currentPlaybackRate < 0) {
+          startReverse(currentPlaybackRate);
+        } else if (v.paused && !isReversing) {
+          v.playbackRate = Math.max(0.25, currentPlaybackRate || 1.0);
+          v.play().catch(function(){});
+        }
       }
     }
 
@@ -591,16 +666,6 @@
       }
     }
 
-    var spdBtns = document.querySelectorAll('.speed-btn');
-    for (var i = 0; i < spdBtns.length; i++) {
-      spdBtns[i].addEventListener('click', function() {
-        for (var j = 0; j < spdBtns.length; j++) spdBtns[j].classList.remove('active');
-        this.classList.add('active');
-        currentPlaybackRate = parseFloat(this.getAttribute('data-speed'));
-        v.playbackRate = currentPlaybackRate;
-      });
-    }
-
     function openCamera() {
       stopReverse();
       vBar.style.display = 'none';
@@ -632,7 +697,9 @@
       if (v.src) URL.revokeObjectURL(v.src);
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
-      v.playbackRate = currentPlaybackRate;
+      currentPlaybackRate = 1.0;
+      txtSpdVal.innerText = '+1.0x';
+      v.playbackRate = 1.0;
       v.currentTime = 0;
       v.pause();
       setPauseState(true);
@@ -641,8 +708,12 @@
     });
 
     vbPlay.addEventListener('click', function() {
-      stopReverse();
-      setPauseState(!v.paused);
+      if (isReversing) {
+        stopReverse();
+        setPauseState(true);
+      } else {
+        setPauseState(!v.paused);
+      }
     });
 
     vbRev.addEventListener('click', function() {
@@ -650,31 +721,27 @@
         stopReverse();
         setPauseState(true);
       } else {
-        v.pause();
-        isReversing = true;
-        vbRev.classList.add('active');
-        setPauseState(false);
-        var stepSec = 0.06 * currentPlaybackRate;
-        reverseInterval = setInterval(function() {
-          if (v.currentTime <= stepSec) {
-            v.currentTime = 0;
-            stopReverse();
-            setPauseState(true);
-          } else {
-            v.currentTime -= stepSec;
-          }
-        }, 50);
+        startReverse(1.0);
       }
     });
 
-    document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
-    document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1); });
-    document.getElementById('vb-fstep').addEventListener('click', function() { stopReverse(); v.pause(); setPauseState(true); v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
+    // -0.1秒
+    document.getElementById('vb-b1').addEventListener('click', function() {
+      v.currentTime = Math.max(0, v.currentTime - 0.1);
+    });
+
+    // +0.1秒
+    document.getElementById('vb-f1').addEventListener('click', function() {
+      v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1);
+    });
+
     v.addEventListener('timeupdate', function() {
       if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
     });
 
-    bPause.addEventListener('click', function() { setPauseState(!isPaused); });
+    bPause.addEventListener('click', function() {
+      setPauseState(!isPaused);
+    });
 
     function startLoop() {
       if (isRunning) return;
