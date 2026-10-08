@@ -201,14 +201,12 @@
       z-index: 40;
     }
     
-    /* 上段ボタングループ：中央ボタン大型化レイアウト */
     .btn-row-top {
       display: flex;
       gap: 6px;
       align-items: center;
     }
 
-    /* 下段ボタングループ：均等3分割 */
     .btn-row-bottom {
       display: flex;
       gap: 5px;
@@ -229,7 +227,6 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 【改修】測定開始ボタン：中央配置・高さ約2倍（64px）・文字大型化 */
     #b-pause {
       flex: 1.8;
       min-height: 64px;
@@ -243,6 +240,7 @@
       font-size: 11px;
       line-height: 1.2;
     }
+    /* 【幅統一】音声ボタン（固定幅 68px） */
     #b-mic {
       flex: 0 0 68px;
       min-height: 64px;
@@ -252,11 +250,17 @@
       padding: 0;
     }
 
-    .btn-row-bottom button,
-    .btn-row-bottom label.btn {
+    .btn-row-bottom button {
       flex: 1;
       font-size: 12px;
       height: 36px;
+    }
+    /* 【幅統一】動画ボタン（音声ボタンと同じ 68px 固定） */
+    #btn-video-label {
+      flex: 0 0 68px;
+      font-size: 12px;
+      height: 36px;
+      padding: 0;
     }
   </style>
 </head>
@@ -332,17 +336,16 @@
   </div>
 
   <footer>
-    <!-- 上段：測定開始を中央・倍高に配置 -->
     <div class="btn-row-top">
       <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート<br>(0m)</button>
       <button id="b-pause" class="green">測定開始 ▶</button>
       <button id="b-mic" style="background:#2563eb;">🎤<br>音声</button>
     </div>
-    <!-- 下段：均等3分割配置 -->
     <div class="btn-row-bottom">
       <button id="b-set-target" style="background:#334155;">目標m</button>
       <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
-      <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
+      <!-- 名称を「動画」に変更し、音声ボタンと同じ幅に統一 -->
+      <label class="btn" id="btn-video-label" for="f-video" style="background:#1e293b; border-color:#475569;">動画</label>
       <input type="file" id="f-video" accept="video/*">
     </div>
   </footer>
