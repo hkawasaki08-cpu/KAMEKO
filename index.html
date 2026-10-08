@@ -89,8 +89,8 @@
     #stage {
       position: relative;
       flex: 1;
-      min-height: 90px;
-      max-height: 165px;
+      min-height: 85px;
+      max-height: 155px;
       width: 100%;
       background: #000;
       overflow: hidden;
@@ -190,18 +190,30 @@
       font-variant-numeric: tabular-nums; line-height: 1;
     }
 
-    /* フッター：ボタン幅とレイアウトの最適化 */
     footer {
       background: #18181b;
       padding: 4px 6px calc(6px + env(safe-area-inset-bottom, 2px));
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 5px;
       border-top: 1px solid #27272a;
       flex-shrink: 0;
       z-index: 40;
     }
-    .btn-row { display: flex; gap: 4px; height: 36px; }
+    
+    /* 上段ボタングループ：中央ボタン大型化レイアウト */
+    .btn-row-top {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* 下段ボタングループ：均等3分割 */
+    .btn-row-bottom {
+      display: flex;
+      gap: 5px;
+      height: 36px;
+    }
     
     button, label.btn {
       background: #27272a; color: #fff;
@@ -217,26 +229,34 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 上段ボタンの幅バランス調整 */
-    #b-manual-start {
-      flex: 1.2;
-      font-size: 11px;
-    }
+    /* 【改修】測定開始ボタン：中央配置・高さ約2倍（64px）・文字大型化 */
     #b-pause {
-      flex: 1.5;
-      font-size: 12px;
+      flex: 1.8;
+      min-height: 64px;
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
+    }
+    #b-manual-start {
+      flex: 1;
+      min-height: 64px;
+      font-size: 11px;
+      line-height: 1.2;
     }
     #b-mic {
-      flex: 0 0 68px; /* 音声ボタンを固定幅に整列 */
+      flex: 0 0 68px;
+      min-height: 64px;
       font-size: 11px;
+      flex-direction: column;
+      gap: 2px;
       padding: 0;
     }
 
-    /* 下段3ボタン：均等幅（1:1:1） */
     .btn-row-bottom button,
     .btn-row-bottom label.btn {
       flex: 1;
       font-size: 12px;
+      height: 36px;
     }
   </style>
 </head>
@@ -312,14 +332,14 @@
   </div>
 
   <footer>
-    <!-- 上段：手動・自動に応じた整然バランス配置 -->
-    <div class="btn-row">
-      <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
+    <!-- 上段：測定開始を中央・倍高に配置 -->
+    <div class="btn-row-top">
+      <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート<br>(0m)</button>
       <button id="b-pause" class="green">測定開始 ▶</button>
-      <button id="b-mic" style="background:#2563eb;">🎤 音声</button>
+      <button id="b-mic" style="background:#2563eb;">🎤<br>音声</button>
     </div>
     <!-- 下段：均等3分割配置 -->
-    <div class="btn-row btn-row-bottom">
+    <div class="btn-row-bottom">
       <button id="b-set-target" style="background:#334155;">目標m</button>
       <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
       <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
@@ -484,12 +504,12 @@
       if (isMicListening) {
         try { recognition.start(); } catch(e){}
         bMic.classList.add('mic-on');
-        bMic.innerText = '🎤 待受中';
+        bMic.innerHTML = '🎤<br>待受';
         speak('音声操作を開始します', 1);
       } else {
         recognition.stop();
         bMic.classList.remove('mic-on');
-        bMic.innerText = '🎤 音声';
+        bMic.innerHTML = '🎤<br>音声';
         speak('音声操作を終了しました', 1);
       }
     });
@@ -502,7 +522,6 @@
       tabAuto.className = 'mode-tab active';
       tabManual.className = 'mode-tab';
       bManualStart.style.display = 'none';
-      bPause.style.flex = "1.5";
       resetAll();
       speak('自動モードに切り替えました', 1);
 
@@ -516,7 +535,6 @@
       tabManual.className = 'mode-tab active';
       tabAuto.className = 'mode-tab';
       bManualStart.style.display = 'flex';
-      bPause.style.flex = "1.2";
       resetAll();
       speak('手動運用モードです', 1);
 
