@@ -37,7 +37,7 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* 【改修】距離表示（ダッシュボード）の高さを拡大 */
+    /* 【改修】カード全体の高さを大型化（min-height: 84px） */
     #dash-container {
       background: #111827;
       padding: 6px 6px;
@@ -49,46 +49,51 @@
     .card {
       flex: 1; background: #000;
       border: 1px solid #374151; border-radius: 6px;
-      padding: 6px 2px; text-align: center;
+      padding: 10px 4px; text-align: center;
+      min-height: 84px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
     }
-    .card-lbl { font-size: 10px; color: #9ca3af; font-weight: bold; }
-    /* 数値サイズを20pxから26pxに拡大 */
+    .card-lbl { font-size: 11px; color: #9ca3af; font-weight: bold; margin-bottom: 2px; }
     .card-val { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
     .card-unit { font-size: 11px; color: #9ca3af; margin-left: 2px; }
-    .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 2px; }
+    .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
+    /* 【改修】手動・自動ボタンの高さを17pxに変更 */
     #control-subbar {
       background: #18181b;
-      padding: 4px 6px;
+      padding: 3px 6px;
       display: flex;
       gap: 6px;
       align-items: stretch;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
     }
-    /* 【改修】手動・自動ボタンの文字サイズを17pxに拡大 */
     .mode-tab {
-      flex: 1; background: #1e293b; border: 1.5px solid #475569; color: #94a3b8;
-      padding: 8px 0; border-radius: 6px; font-size: 17px; font-weight: 900;
-      cursor: pointer; text-align: center; min-height: 44px;
+      flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
+      padding: 0; border-radius: 4px; font-size: 11px; font-weight: 900;
+      cursor: pointer; text-align: center;
+      height: 17px; min-height: 17px; line-height: 15px;
       display: flex; align-items: center; justify-content: center;
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
     #btn-dir {
       flex: 0 0 54px;
-      font-size: 20px;
+      font-size: 12px;
       font-weight: 900;
-      line-height: 1;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
+      height: 17px; min-height: 17px; line-height: 15px;
+      padding: 0;
     }
-    #btn-dir.dir-auto { background: #334155; border: 1.5px solid #64748b; color: #38bdf8; }
-    #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
-    #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
+    #btn-dir.dir-auto { background: #334155; border: 1px solid #64748b; color: #38bdf8; }
+    #btn-dir.dir-fwd { background: #0d9488; border: 1px solid #2dd4bf; color: #fff; }
+    #btn-dir.dir-rev { background: #ea580c; border: 1px solid #fb923c; color: #fff; }
 
     #stage {
       position: relative;
@@ -163,19 +168,20 @@
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 4px 6px;
+      padding: 3px 6px;
       display: none;
       flex-direction: column;
-      gap: 4px;
+      gap: 3px;
       flex-shrink: 0;
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
     
+    /* 【改修】再生ボタン等（コントローラー行）の高さを17pxに変更 */
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
-      border: 1.5px solid #475569; padding: 0; border-radius: 6px;
-      font-size: 11px; font-weight: bold; text-align: center; cursor: pointer;
-      line-height: 1; height: 34px; min-height: 34px;
+      border: 1px solid #475569; padding: 0; border-radius: 4px;
+      font-size: 10px; font-weight: bold; text-align: center; cursor: pointer;
+      line-height: 15px; height: 17px; min-height: 17px;
       display: flex; align-items: center; justify-content: center;
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
@@ -308,9 +314,9 @@
     </div>
   </div>
 
+  <!-- 【改修】高さを17pxに変更したモード切替バー -->
   <div id="control-subbar">
     <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
-    <!-- 【改修】文字サイズを17pxに拡大 -->
     <button class="mode-tab" id="tab-manual">✋ 手動</button>
     <button class="mode-tab active" id="tab-auto">🎯 自動</button>
   </div>
@@ -347,6 +353,7 @@
       <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
+    <!-- 【改修】高さを17pxに変更した再生・シーク行 -->
     <div class="v-row">
       <button class="v-btn" id="vb-b1">-0.1秒</button>
       <button class="v-btn" id="vb-rev">◀ 逆転</button>
