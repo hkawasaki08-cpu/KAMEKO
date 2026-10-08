@@ -130,7 +130,6 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 録画バー（幅1/4・右端配置） */
     #rec-controls-bar {
       background: #18181b;
       padding: 3px 6px;
@@ -214,7 +213,6 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 音声操作ボタンの幅を半分（縮小）に指定 */
     #b-mic {
       flex: 0 0 38%;
       font-size: 11px;
@@ -249,7 +247,8 @@
   <div id="control-subbar">
     <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
     <button class="mode-tab" id="tab-manual">✋ 手動</button>
-    <button class="mode-tab active" id="tab-auto">🎯 自動校正</button>
+    <!-- 「自動校正」から「自動」に名称変更 -->
+    <button class="mode-tab active" id="tab-auto">🎯 自動</button>
   </div>
 
   <div id="stage">
@@ -267,14 +266,12 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <!-- 録画バー（幅1/4・右端配置） -->
   <div id="rec-controls-bar">
     <span id="rec-timer">● REC 00s / 60s</span>
     <button id="b-rec-start" class="rec-btn">🔴 録画</button>
     <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止</button>
   </div>
 
-  <!-- 動画コントローラー -->
   <div id="v-bar">
     <div class="v-row">
       <span style="font-size: 9px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
@@ -297,14 +294,11 @@
   <footer>
     <div class="btn-row">
       <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
-      <!-- 「測定再開」を「測定開始 ▶」に変更 -->
       <button id="b-pause" class="green">測定開始 ▶</button>
-      <!-- 音声操作ボタンの幅を半分にスリム化 -->
       <button id="b-mic" style="background:#2563eb;">🎤 音声操作</button>
     </div>
     <div class="btn-row">
       <button id="b-cam" class="green">カメラ起動</button>
-      <!-- 「目標m」と「動画読込」の位置を入れ替え -->
       <button id="b-set-target" style="background:#334155;">目標m</button>
       <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
       <input type="file" id="f-video" accept="video/*">
@@ -319,10 +313,9 @@
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
-    var isPaused = true; // 初期状態は停止中
+    var isPaused = true;
     var isManualTracking = false;
 
-    // 速度コントロール変数（範囲: -3.0 〜 +5.0）
     var currentPlaybackRate = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
@@ -346,7 +339,6 @@
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
 
-    // Safariクラッシュ防止中間Canvas
     var downCanvas = document.createElement('canvas');
     var downCtx = downCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
     var MAX_DOWN_WIDTH = 640;
@@ -484,15 +476,21 @@
     var tabAuto = document.getElementById('tab-auto');
     var tabManual = document.getElementById('tab-manual');
 
+    // 「自動」ボタン押下時：自動モード切り替え ＋ カメラ自動起動
     tabAuto.addEventListener('click', function() {
       operationMode = 'AUTO';
       tabAuto.className = 'mode-tab active';
       tabManual.className = 'mode-tab';
       bManualStart.style.display = 'none';
       resetAll();
-      speak('自動テープ検知モードに切り替えました', 1);
+      speak('自動モードに切り替えました', 1);
+
+      if (!v.srcObject && !v.src) {
+        openCamera();
+      }
     });
 
+    // 「手動」ボタン押下時：手動モード切り替え ＋ カメラ自動起動
     tabManual.addEventListener('click', function() {
       operationMode = 'MANUAL';
       tabManual.className = 'mode-tab active';
@@ -500,6 +498,10 @@
       bManualStart.style.display = 'flex';
       resetAll();
       speak('手動運用モードです', 1);
+
+      if (!v.srcObject && !v.src) {
+        openCamera();
+      }
     });
 
     bManualStart.addEventListener('click', startManualMeasurement);
@@ -684,6 +686,7 @@
         audio: false,
         video: { facingMode: { ideal: "environment" }, width: { ideal: 640 } }
       }).then(function(stream) {
+        v.src = "";
         v.srcObject = stream;
         v.playbackRate = 1.0;
         v.play();
@@ -860,7 +863,6 @@
           var yellowRatio = yellowCountTotal / totalPixels;
           runDiagnostics(sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
 
-          // 自動校正シーケンス
           if (operationMode === 'AUTO') {
             var isWhitePresent = whiteRatio > 0.08;
             var isYellowPresent = yellowRatio > 0.05;
