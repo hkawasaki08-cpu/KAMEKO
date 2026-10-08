@@ -37,7 +37,7 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* カード全体の大型化（min-height: 84px） */
+    /* ダッシュボードカード（縦幅拡大・min-height: 84px） */
     #dash-container {
       background: #111827;
       padding: 6px 6px;
@@ -61,7 +61,7 @@
     .card-unit { font-size: 11px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* 手動・自動ボタンの高さ: 17px */
+    /* モード切替バー（高さ: 17px） */
     #control-subbar {
       background: #18181b;
       padding: 3px 6px;
@@ -176,7 +176,7 @@
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
     
-    /* 再生・シークボタン行の高さ: 17px */
+    /* コントローラー行（高さ: 17px） */
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
       border: 1px solid #475569; padding: 0; border-radius: 4px;
@@ -244,6 +244,7 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
+    /* 3列同期レイアウト */
     .col-left-main {
       flex: 1.3 !important;
       min-height: 58px;
@@ -406,7 +407,7 @@
     var isCameraOpening = false;
     var cameraPermissionTimeout = null;
 
-    /* --- 【新機能】画面自動ロック（スリープ）防止制御 --- */
+    /* 画面自動ロック（スリープ）防止制御 */
     var wakeLock = null;
     async function requestWakeLock() {
       try {
@@ -791,7 +792,7 @@
       }
     }
 
-    /* カメラ起動処理（Wake Lock要求・タイムアウト検知対応） */
+    /* カメラ起動処理 */
     function openCamera() {
       if (isCameraOpening) return;
       isCameraOpening = true;
