@@ -229,10 +229,7 @@
 
   <script>
     var operationMode = 'MANUAL';
-    
-    // 【実測値補正】1.07mの実測に基づき 2.5 -> 2.675 px/mm に修正
-    var scaleFactor = 2.675;
-    
+    var scaleFactor = 2.675; // 1.00m区間実測に基づき補正
     var moveDirection = 1;
     var totalDist = 0.0;
     var targetDist = 31.0;
@@ -261,6 +258,11 @@
     var curProf = new Float32Array(PW);
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
+
+    // 【Safariクラッシュ対策】内部ダウンスケーリング用中間Canvas（最大幅640pxに抑制）
+    var downCanvas = document.createElement('canvas');
+    var downCtx = downCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    var MAX_DOWN_WIDTH = 640;
 
     var stage = document.getElementById('stage');
     var targetBox = document.getElementById('target-box');
@@ -533,9 +535,10 @@
       vBar.style.display = 'none';
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return alert('カメラ非対応です');
 
+      // カメラ起動時もVRAM保護のため解像度上限をVGA〜HD下限に制限
       navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 640 } }
       }).then(function(stream) {
         v.srcObject = stream;
         v.playbackRate = 1.0;
@@ -653,7 +656,24 @@
         if (v.readyState >= 2 && v.videoWidth > 0 && isVideoActive) {
           isPaused = false;
 
-          var vw = v.videoWidth, vh = v.videoHeight;
+          var origVw = v.videoWidth, origVh = v.videoHeight;
+
+          // 【クラッシュ防止】高解像度動画を安全な解像度（最大幅640px）にダウンスケール
+          var downScale = 1.0;
+          if (origVw > MAX_DOWN_WIDTH) {
+            downScale = MAX_DOWN_WIDTH / origVw;
+          }
+          var vw = Math.floor(origVw * downScale);
+          var vh = Math.floor(origVh * downScale);
+
+          if (downCanvas.width !== vw || downCanvas.height !== vh) {
+            downCanvas.width = vw;
+            downCanvas.height = vh;
+          }
+
+          // 中間Canvasに1回縮小描画（SafariのVRAMバッファを解放）
+          downCtx.drawImage(v, 0, 0, vw, vh);
+
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
@@ -667,7 +687,8 @@
           var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
           var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
 
-          ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
+          // 判定枠サイズ（PW=200, PH=32）へ転送
+          ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
           var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
 
           var whiteCountTotal = 0, yellowCountTotal = 0, glareCount = 0, sumLumTotal = 0;
@@ -680,9 +701,11 @@
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
               sumG += lum; sumLumTotal += lum;
 
+              // 白テープ判定（シワ・陰影適応）
               if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) whiteCountTotal++;
               if (lum > 235) glareCount++;
 
+              // 黄色テープ判定
               if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) yellowCountTotal++;
             }
             rawProf[x] = sumG / PH;
@@ -761,7 +784,8 @@
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
-            var shiftPx = (bestS * moveDirection) * (swSrc / PW);
+            // スケール比率にダウンスケール率を整合
+            var shiftPx = (bestS * moveDirection) * (swSrc / PW) / downScale;
 
             if (shiftPx < -1.5) {
               backwardStreak++;
