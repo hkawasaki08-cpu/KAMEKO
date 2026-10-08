@@ -3,29 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>(仮称)カメラ式ケーブル距離計 - KAMEKO</title>
+  <title>カメラ式ケーブル延線距離計 - KAMEKO</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
-      width: 100vw;
-      height: 100dvh;
-      background: #09090b;
-      color: #fff;
+      width: 100vw; height: 100dvh;
+      background: #09090b; color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      overflow: hidden; display: flex; flex-direction: column;
     }
     header {
-      background: #18181b;
-      padding: 6px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #27272a;
-      flex-shrink: 0;
-      z-index: 30;
-      height: 38px;
+      background: #18181b; padding: 6px 12px; height: 38px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid #27272a; flex-shrink: 0; z-index: 30;
     }
     .title { font-size: 13px; font-weight: bold; color: #4ade80; }
     #status-badge {
@@ -36,34 +26,23 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* ダッシュボード */
     #dash-container {
-      background: #111827;
-      padding: 8px 8px 6px;
-      border-bottom: 1px solid #1f2937;
-      flex-shrink: 0;
-      z-index: 25;
+      background: #111827; padding: 8px 8px 6px;
+      border-bottom: 1px solid #1f2937; flex-shrink: 0; z-index: 25;
     }
     #dash { display: flex; gap: 6px; }
     .card {
-      flex: 1; background: #000;
-      border: 1.5px solid #374151; border-radius: 8px;
-      padding: 6px 2px 4px; text-align: center;
+      flex: 1; background: #000; border: 1.5px solid #374151;
+      border-radius: 8px; padding: 6px 2px 4px; text-align: center;
     }
     .card-lbl { font-size: 11px; color: #9ca3af; font-weight: bold; }
     .card-val { font-size: 28px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
     .card-unit { font-size: 12px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 11px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* 設定・方向バー */
     #control-subbar {
-      background: #18181b;
-      padding: 5px 8px;
-      display: flex;
-      gap: 6px;
-      align-items: stretch;
-      border-bottom: 1px solid #27272a;
-      flex-shrink: 0;
+      background: #18181b; padding: 5px 8px; display: flex;
+      gap: 6px; align-items: stretch; border-bottom: 1px solid #27272a; flex-shrink: 0;
     }
     .mode-tab {
       flex: 1; background: #1e293b; border: 1px solid #475569; color: #94a3b8;
@@ -71,54 +50,33 @@
       cursor: pointer; text-align: center;
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
-
     #btn-dir {
-      flex: 0 0 74px;
-      font-size: 22px;
-      font-weight: 900;
-      line-height: 1;
-      padding: 0;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      flex: 0 0 74px; font-size: 22px; font-weight: 900; line-height: 1;
+      border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 動画・カメラ領域 */
     #stage {
-      position: relative;
-      height: 165px;
-      width: 100%;
-      background: #000;
-      overflow: hidden;
-      flex-shrink: 0;
-      border-bottom: 1px solid #334155;
+      position: relative; height: 175px; width: 100%;
+      background: #000; overflow: hidden; flex-shrink: 0; border-bottom: 1px solid #334155;
     }
-    video {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover;
-    }
-
+    video { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
     #target-box {
-      position: absolute;
-      top: 15%; left: 3%; width: 94%; height: 70%;
+      position: absolute; top: 20%; left: 4%; width: 92%; height: 60%;
       border: 2px solid #22c55e; border-radius: 6px;
-      box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.4);
-      z-index: 10; pointer-events: none;
+      box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.4); z-index: 10; pointer-events: none;
+    }
+    #error-banner {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(220, 38, 38, 0.95); border: 2px solid #fca5a5;
+      color: #fff; padding: 6px 18px; border-radius: 20px; font-size: 13px;
+      font-weight: bold; z-index: 35; display: none; white-space: nowrap;
     }
 
-    /* 診断パネル（白・黄比率デバッグ表示付き） */
     #diag-panel {
-      background: #0b1329;
-      border-bottom: 1px solid #1e293b;
-      padding: 5px 8px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-shrink: 0;
+      background: #0b1329; border-bottom: 1px solid #1e293b;
+      padding: 5px 8px; display: flex; gap: 8px; align-items: center; flex-shrink: 0;
     }
     #diag-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
     #diag-msg { font-size: 11px; font-weight: bold; color: #4ade80; }
@@ -128,101 +86,30 @@
       border-radius: 3px; background: #000; display: block;
     }
 
-    #error-banner {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(37, 99, 235, 0.95); border: 2px solid #93c5fd;
-      color: #fff; padding: 6px 18px; border-radius: 20px;
-      font-size: 13px; font-weight: bold; z-index: 35;
-      display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
-    }
-
-    /* 録画バー */
-    #rec-controls-bar {
-      background: #18181b;
-      padding: 6px 8px;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      border-bottom: 1px solid #27272a;
-      flex-shrink: 0;
-    }
-    .rec-btn {
-      flex: 1;
-      background: #b91c1c; color: #fff; border: 1px solid #ef4444;
-      padding: 7px 0; border-radius: 6px; font-size: 12px; font-weight: bold;
-      cursor: pointer; text-align: center;
-    }
-    #rec-timer {
-      font-size: 12px; font-weight: bold; color: #ef4444;
-      background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px;
-      display: none; white-space: nowrap;
-    }
-
-    /* 動画コントローラー */
-    #v-bar {
-      background: #0f172a; border-bottom: 1px solid #1e293b;
-      padding: 5px 8px; display: none; flex-direction: column; gap: 4px;
-      flex-shrink: 0;
-    }
-    .v-row { display: flex; gap: 5px; align-items: center; }
-    .v-btn {
-      flex: 1; background: #1e293b; color: #fff;
-      border: 1px solid #475569; padding: 7px 0; border-radius: 5px;
-      font-size: 11px; font-weight: bold; text-align: center; cursor: pointer;
-    }
-    .v-btn.active { background: #9333ea; border-color: #c084fc; }
-    .speed-btn {
-      flex: 1; background: #1e293b; color: #94a3b8;
-      border: 1px solid #334155; padding: 4px 0; border-radius: 4px;
-      font-size: 10px; font-weight: bold; text-align: center; cursor: pointer;
-    }
-    .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
-
-    /* メイン操作ボタン */
     footer {
-      background: #18181b;
-      padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
-      display: flex; flex-direction: column; gap: 7px;
-      border-top: 1px solid #27272a; flex: 1; justify-content: flex-end;
-      z-index: 40;
+      background: #18181b; padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
+      display: flex; flex-direction: column; gap: 7px; border-top: 1px solid #27272a;
+      flex: 1; justify-content: flex-end; z-index: 40;
     }
     .btn-row { display: flex; gap: 7px; flex: 1; max-height: 52px; }
     button, label.btn {
-      flex: 1; background: #27272a; color: #fff;
-      border: 1.5px solid #3f3f46; border-radius: 8px;
-      font-size: 13px; font-weight: bold; text-align: center;
-      cursor: pointer; touch-action: manipulation;
-      display: flex; justify-content: center; align-items: center;
-      min-height: 44px;
+      flex: 1; background: #27272a; color: #fff; border: 1.5px solid #3f3f46;
+      border-radius: 8px; font-size: 13px; font-weight: bold; text-align: center;
+      cursor: pointer; touch-action: manipulation; display: flex; justify-content: center;
+      align-items: center; min-height: 44px;
     }
-    button.green { background: #16a34a; border-color: #22c55e; font-size: 14px; }
-    button.orange { background: #d97706; border-color: #f59e0b; font-size: 14px; }
-    button.purple { background: #7c3aed; border-color: #a855f7; font-size: 14px; }
+    button.green { background: #16a34a; border-color: #22c55e; }
+    button.orange { background: #d97706; border-color: #f59e0b; }
+    button.purple { background: #7c3aed; border-color: #a855f7; }
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
-
-    /* スピナー / モーダル */
-    .overlay-modal {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.75); display: flex; flex-direction: column;
-      justify-content: center; align-items: center; z-index: 100;
-    }
-    .modal-box {
-      background: #18181b; border: 1px solid #475569; border-radius: 8px;
-      padding: 18px; text-align: center; max-width: 80%;
-    }
-    .spinner {
-      width: 32px; height: 32px; border: 3px solid rgba(255, 255, 255, 0.3);
-      border-radius: 50%; border-top-color: #38bdf8; animation: spin 0.8s ease-in-out infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 
   <header>
-    <div class="title">(仮称)カメラ式ケーブル距離計 - KAMEKO</div>
-    <div id="status-badge">手動待機中 (スタート前)</div>
+    <div class="title">KAMEKO ケーブル距離計</div>
+    <div id="status-badge">手動待機中</div>
   </header>
 
   <div id="dash-container">
@@ -232,107 +119,64 @@
         <div><span id="txt-dist" class="card-val">0.00</span><span class="card-unit">m</span></div>
       </div>
       <div class="card" style="border-color: #0284c7;">
-        <div class="card-lbl">目標残 (目標: <span id="txt-target-val">31</span>m)</div>
-        <div><span id="txt-remain" class="card-val" style="color: #38bdf8;">31.00</span><span class="card-unit">m</span></div>
+        <div class="card-lbl">残距離 (目標: <span id="txt-target-val">30</span>m)</div>
+        <div><span id="txt-remain" class="card-val" style="color: #38bdf8;">30.00</span><span class="card-unit">m</span></div>
         <div class="card-sub" id="txt-eta">予想: --分--秒</div>
       </div>
       <div class="card">
-        <div class="card-lbl">速度 (平均)</div>
+        <div class="card-lbl">速度</div>
         <div><span id="txt-speed" class="card-val">0.0</span><span class="card-unit">m/分</span></div>
       </div>
     </div>
   </div>
 
   <div id="control-subbar">
-    <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
-    <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
-    <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
+    <button class="dir-fwd" id="btn-dir" title="タップで方向切替">➡</button>
+    <button class="mode-tab active" id="tab-auto">🎯 自動校正モード</button>
+    <button class="mode-tab" id="tab-manual">✋ 手動モード</button>
   </div>
 
   <div id="stage">
     <video id="v" playsinline webkit-playsinline muted loop></video>
     <canvas id="c-proc" style="display:none;"></canvas>
     <div id="target-box"></div>
-    <div id="error-banner">🔄 バック中...</div>
-
-    <div id="cam-spinner" style="display: none;" class="overlay-modal">
-      <div class="spinner"></div>
-      <p style="margin-top: 8px; font-size: 13px; color: #fff;">カメラ初期化中...</p>
-    </div>
-
-    <div id="cam-error-modal" style="display: none;" class="overlay-modal">
-      <div class="modal-box">
-        <p id="cam-error-msg" style="color: #ef4444; font-size: 13px; font-weight: bold;">カメラの起動に失敗しました</p>
-        <p style="color: #ccc; font-size: 11px; margin: 6px 0 12px;">設定でカメラの使用を許可してください。</p>
-        <button id="b-cam-retry" style="background: #2563eb; color: #fff; padding: 8px 16px; border-radius: 5px; border: none; font-size: 13px; cursor: pointer;">再試行</button>
-      </div>
-    </div>
+    <div id="error-banner">⚠️ 逆送り検知</div>
   </div>
 
   <div id="diag-panel">
     <div id="diag-info">
       <span id="diag-msg">🔍 カメラ待機中...</span>
-      <span id="diag-sub">カメラ起動で光量・エッジを診断</span>
+      <span id="diag-sub">環境光・エッジ診断</span>
     </div>
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <div id="rec-controls-bar">
-    <button id="b-rec-start" class="rec-btn">🔴 録画 (最長1分)</button>
-    <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 録画停止 (保存)</button>
-    <span id="rec-timer">● REC 00s / 60s</span>
-  </div>
-
-  <div id="v-bar">
-    <div class="v-row">
-      <span style="font-size: 10px; color: #38bdf8; min-width: 40px; font-weight: bold;">速度:</span>
-      <button class="speed-btn" data-speed="0.25">0.25x</button>
-      <button class="speed-btn" data-speed="0.5">0.5x</button>
-      <button class="speed-btn active" data-speed="1.0">1.0x</button>
-      <button class="speed-btn" data-speed="1.5">1.5x</button>
-      <button class="speed-btn" data-speed="2.0">2.0x</button>
-    </div>
-    <div style="display:flex; justify-content:space-between; font-size:10px; color:#94a3b8;">
-      <span>🎬 動画コントローラー</span>
-      <span id="v-time">0.0s</span>
-    </div>
-    <div class="v-row">
-      <button class="v-btn" id="vb-b1">-1秒</button>
-      <button class="v-btn" id="vb-rev">◀ 逆再生</button>
-      <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
-      <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
-      <button class="v-btn" id="vb-f1">+1秒</button>
-    </div>
-  </div>
-
   <footer>
     <div class="btn-row">
-      <button id="b-manual-start" class="purple">▶ 手動スタート (0m)</button>
+      <button id="b-manual-start" class="purple" style="display:none;">▶ 手動スタート (0m)</button>
       <button id="b-pause" class="orange">一時停止 ⏸</button>
       <button id="b-mic" style="background:#2563eb;">🎤 音声操作 ON</button>
     </div>
     <div class="btn-row">
       <button id="b-cam" class="green">カメラ起動</button>
-      <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画読込</label>
+      <label class="btn" for="f-video" style="background:#1e293b; border-color:#475569;">動画検証</label>
       <input type="file" id="f-video" accept="video/*">
       <button id="b-set-target" style="background:#334155;">目標m</button>
-      <button id="b-zero" style="background:#334155; color:#f87171;">0mリセット</button>
+      <button id="b-zero" style="background:#334155; color:#f87171;">リセット</button>
     </div>
   </footer>
 
   <script>
-    var operationMode = 'MANUAL';
-    var scaleFactor = 2.5; // 初期近接スケール (px/mm)
-    var moveDirection = 1; // 1: ➡, -1: ⬅
+    var operationMode = 'AUTO';
+    var scaleFactor = 2.5; // 初期スケール: 2.5 px/mm (約40cm〜1m想定)
+    var moveDirection = 1;
     var totalDist = 0.0;
-    var targetDist = 31.0;
+    var targetDist = 30.0;
     var isRunning = false;
     var isPaused = false;
-
     var isManualTracking = false;
-    var currentPlaybackRate = 1.0;
 
-    // 自動検知ステート（白抜けで0m、黄1で1m、黄2で2m確定）
+    // 自動校正状態
     var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
@@ -344,13 +188,9 @@
     var currentSpeed = 0.0;
     var lastProcessTime = 0;
     var lastDiagTime = 0;
-
-    var reverseInterval = null;
-    var isReversing = false;
     var backwardStreak = 0;
 
-    var PW = 200;
-    var PH = 32;
+    var PW = 200, PH = 32;
     var rawProf = new Float32Array(PW);
     var curProf = new Float32Array(PW);
     var prevProf = new Float32Array(PW);
@@ -360,11 +200,9 @@
     var targetBox = document.getElementById('target-box');
     var v = document.getElementById('v');
     var cProc = document.getElementById('c-proc');
-    cProc.width = PW;
-    cProc.height = PH;
+    cProc.width = PW; cProc.height = PH;
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
 
-    var diagPanel = document.getElementById('diag-panel');
     var diagMsg = document.getElementById('diag-msg');
     var diagSub = document.getElementById('diag-sub');
     var diagCanvas = document.getElementById('diag-canvas');
@@ -376,60 +214,53 @@
     var txtTargetVal = document.getElementById('txt-target-val');
     var txtSpeed = document.getElementById('txt-speed');
     var txtEta = document.getElementById('txt-eta');
-    var vBar = document.getElementById('v-bar');
-    var vTime = document.getElementById('v-time');
     var bPause = document.getElementById('b-pause');
     var statusBadge = document.getElementById('status-badge');
     var errorBanner = document.getElementById('error-banner');
     var bManualStart = document.getElementById('b-manual-start');
     var btnDir = document.getElementById('btn-dir');
-    var vbPlay = document.getElementById('vb-play');
-    var vbRev = document.getElementById('vb-rev');
     var bMic = document.getElementById('b-mic');
-
-    var camSpinner = document.getElementById('cam-spinner');
-    var camErrorModal = document.getElementById('cam-error-modal');
-    var camErrorMsg = document.getElementById('cam-error-msg');
-    var bCamRetry = document.getElementById('b-cam-retry');
 
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
         moveDirection = -1;
         btnDir.innerText = '⬅';
         btnDir.className = 'dir-rev';
-        speak('左向き、右からの延線に設定しました', 1);
+        speak('左送り設定', 1);
       } else {
         moveDirection = 1;
         btnDir.innerText = '➡';
         btnDir.className = 'dir-fwd';
-        speak('右向き、左からの延線に設定しました', 1);
+        speak('右送り設定', 1);
       }
       backwardStreak = 0;
       errorBanner.style.display = 'none';
       hasPrevProf = false;
     });
 
-    function speak(text, count) {
+    function speak(text, repeat) {
       if (!('speechSynthesis' in window)) return;
-      var times = count || 1;
-      for (var i = 0; i < times; i++) {
-        var uttr = new SpeechSynthesisUtterance(text);
-        uttr.lang = 'ja-JP';
-        uttr.rate = 1.15;
-        window.speechSynthesis.speak(uttr);
+      var count = repeat || 1;
+      for (var i = 0; i < count; i++) {
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = 'ja-JP';
+        u.rate = 1.15;
+        window.speechSynthesis.speak(u);
       }
     }
 
-    function checkDistanceAnnouncements(currentD) {
-      var diff = targetDist - currentD;
+    function checkDistanceAnnouncements(d) {
+      var diff = targetDist - d;
+      // 5m毎アナウンス
       if (diff > 10.5) {
-        var step5 = Math.floor(currentD / 5.0) * 5;
-        if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
+        var step5 = Math.floor(d / 5.0) * 5;
+        if (step5 >= 5 && (d - step5) < 0.6 && !announcedMarks['fwd_' + step5]) {
           announcedMarks['fwd_' + step5] = true;
           speak(step5 + 'メートル', 1);
           return;
         }
       }
+      // ラスト10m〜1mの秒読み
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
           announcedMarks['rem_' + m] = true;
@@ -437,20 +268,23 @@
           return;
         }
       }
+      // 目標到達
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
         announcedMarks['zero'] = true;
         speak('ゼロ、到達しました', 1);
         return;
       }
+      // 超過案内
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
-        if (overM >= 1 && overM <= 25 && !announcedMarks['over_' + overM]) {
+        if (overM >= 1 && overM <= 15 && !announcedMarks['over_' + overM]) {
           announcedMarks['over_' + overM] = true;
           speak('プラス ' + overM + 'メートル', 1);
         }
       }
     }
 
+    // 音声操作 (Web Speech API)
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var recognition = null;
     var isMicListening = false;
@@ -460,49 +294,37 @@
       recognition.lang = 'ja-JP';
       recognition.continuous = true;
       recognition.interimResults = false;
-
-      recognition.onresult = function(event) {
-        for (var i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            var cmd = event.results[i][0].transcript.trim().replace(/\s+/g, '');
-            handleVoiceCommand(cmd);
+      recognition.onresult = function(e) {
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            var cmd = e.results[i][0].transcript.trim().replace(/\s+/g, '');
+            if (cmd.includes('スタート') || cmd.includes('開始')) {
+              startManualMeasurement();
+            } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
+              setPauseState(true);
+              speak('停止しました', 1);
+            } else if (cmd.includes('リセット')) {
+              resetAll();
+              speak('リセットしました', 1);
+            }
           }
         }
       };
       recognition.onend = function() {
-        if (isMicListening) { try { recognition.start(); } catch(e) {} }
+        if (isMicListening) { try { recognition.start(); } catch(err) {} }
       };
-      recognition.onerror = function(e) {
-        if (e.error === 'not-allowed') {
-          isMicListening = false;
-          bMic.classList.remove('mic-on');
-          bMic.innerText = '🎤 音声操作 ON';
-        }
-      };
-    }
-
-    function handleVoiceCommand(cmd) {
-      if (cmd.includes('スタート') || cmd.includes('開始')) {
-        startManualMeasurement();
-      } else if (cmd.includes('ストップ') || cmd.includes('停止')) {
-        setPauseState(true);
-        speak('ストップしました', 1);
-      } else if (cmd.includes('リセット')) {
-        resetAll();
-        speak('リセットしました', 1);
-      }
     }
 
     bMic.addEventListener('click', function() {
       if (!SpeechRecognition) {
-        alert('お使いのブラウザは音声認識に対応していません');
+        alert('ブラウザが音声認識に対応していません');
         return;
       }
       isMicListening = !isMicListening;
       if (isMicListening) {
         try { recognition.start(); } catch(e) {}
         bMic.classList.add('mic-on');
-        bMic.innerText = '🎤 待受中';
+        bMic.innerText = '🎤 音声認識中';
         speak('音声操作を開始します', 1);
       } else {
         recognition.stop();
@@ -512,6 +334,7 @@
       }
     });
 
+    // モード切替
     var tabAuto = document.getElementById('tab-auto');
     var tabManual = document.getElementById('tab-manual');
 
@@ -521,7 +344,7 @@
       tabManual.className = 'mode-tab';
       bManualStart.style.display = 'none';
       resetAll();
-      speak('自動テープ検知モードに切り替えました', 1);
+      speak('自動校正モード', 1);
     });
 
     tabManual.addEventListener('click', function() {
@@ -530,12 +353,10 @@
       tabAuto.className = 'mode-tab';
       bManualStart.style.display = 'flex';
       resetAll();
-      speak('手動運用モードです', 1);
+      speak('手動モード', 1);
     });
 
-    bManualStart.addEventListener('click', function() {
-      startManualMeasurement();
-    });
+    bManualStart.addEventListener('click', startManualMeasurement);
 
     function startManualMeasurement() {
       totalDist = 0.0;
@@ -546,53 +367,32 @@
       announcedMarks = {};
       backwardStreak = 0;
       updateDistUI();
-
       statusBadge.className = 'active';
       statusBadge.innerText = '手動測定中';
-
-      if (v.paused) {
-        var p = v.play();
-        if (p !== undefined) { p.catch(function(){}); }
-      }
-      diagPanel.style.display = 'none';
+      if (v.paused) v.play().catch(function(){});
       speak('測定を開始します。', 2);
-    }
-
-    function stopReverse() {
-      if (reverseInterval) { clearInterval(reverseInterval); reverseInterval = null; }
-      isReversing = false;
-      vbRev.classList.remove('active');
     }
 
     function setPauseState(paused) {
       isPaused = paused;
       if (isPaused) {
-        stopReverse();
         bPause.className = 'green';
-        bPause.innerText = '測定再開 ▶';
-        vbPlay.innerText = '再生 ▶';
+        bPause.innerText = '再開 ▶';
         txtSpeed.innerText = "0.0";
         txtEta.innerText = "予想: --分--秒";
         backwardStreak = 0;
         errorBanner.style.display = 'none';
-        diagPanel.style.display = 'flex';
         if (!v.paused) v.pause();
       } else {
         bPause.className = 'orange';
         bPause.innerText = '一時停止 ⏸';
-        vbPlay.innerText = '一時停止 ⏸';
         hasPrevProf = false;
         backwardStreak = 0;
-        diagPanel.style.display = 'none';
-        if (v.paused && !isReversing) {
-          var p = v.play();
-          if (p !== undefined) { p.catch(function(){}); }
-        }
+        if (v.paused) v.play().catch(function(){});
       }
     }
 
     function resetAll() {
-      stopReverse();
       totalDist = 0.0;
       totalPxSinceStart = 0.0;
       isInsideYellow = false;
@@ -603,7 +403,6 @@
       speedSamples = [];
       backwardStreak = 0;
       errorBanner.style.display = 'none';
-      diagPanel.style.display = 'flex';
       updateDistUI();
       txtSpeed.innerText = "0.0";
       txtEta.innerText = "予想: --分--秒";
@@ -611,12 +410,10 @@
       if (operationMode === 'AUTO') {
         autoState = 'WAIT_HEAD_INSIDE';
         statusBadge.className = '';
-        statusBadge.style.background = '#334155';
         statusBadge.innerText = '待機中 (ヘッド通過待ち)';
       } else {
         statusBadge.className = '';
-        statusBadge.style.background = '#475569';
-        statusBadge.innerText = '手動待機中 (スタート前)';
+        statusBadge.innerText = '手動待機中';
       }
     }
 
@@ -626,13 +423,13 @@
     });
 
     document.getElementById('b-set-target').addEventListener('click', function() {
-      var val = window.prompt("目標距離(m)を入力:", targetDist);
+      var val = window.prompt("目標距離 (m):", targetDist);
       if (val !== null && !isNaN(parseFloat(val))) {
         targetDist = Math.max(1, parseFloat(val));
         txtTargetVal.innerText = targetDist;
         announcedMarks = {};
         updateDistUI();
-        speak(targetDist + 'メートルにセットしました', 1);
+        speak(targetDist + 'メートルに設定', 1);
       }
     });
 
@@ -643,134 +440,54 @@
         txtRemain.innerText = '+' + Math.abs(rem).toFixed(2);
         txtRemain.style.color = '#ef4444';
         txtEta.innerText = "予想: 到達済";
-        txtEta.style.color = '#ef4444';
       } else {
         txtRemain.innerText = rem.toFixed(2);
         txtRemain.style.color = '#38bdf8';
-        updateEtaDisplay(rem);
+        if (currentSpeed >= 0.5) {
+          var sec = Math.round((rem / currentSpeed) * 60.0);
+          txtEta.innerText = "予想: " + Math.floor(sec / 60) + "分" + (sec % 60 < 10 ? "0" : "") + (sec % 60) + "秒";
+        } else {
+          txtEta.innerText = "予想: --分--秒";
+        }
       }
     }
 
-    function updateEtaDisplay(rem) {
-      if (rem <= 0) {
-        txtEta.innerText = "予想: 到達済";
-        txtEta.style.color = '#ef4444';
-        return;
-      }
-      if (currentSpeed >= 0.5) {
-        var secTotal = Math.round((rem / currentSpeed) * 60.0);
-        var m = Math.floor(secTotal / 60);
-        var s = secTotal % 60;
-        txtEta.innerText = "予想: " + m + "分" + (s < 10 ? "0" : "") + s + "秒";
-        txtEta.style.color = "#38bdf8";
-      } else {
-        txtEta.innerText = "予想: --分--秒";
-        txtEta.style.color = "#94a3b8";
-      }
-    }
-
-    var spdBtns = document.querySelectorAll('.speed-btn');
-    for (var i = 0; i < spdBtns.length; i++) {
-      spdBtns[i].addEventListener('click', function() {
-        for (var j = 0; j < spdBtns.length; j++) { spdBtns[j].classList.remove('active'); }
-        this.classList.add('active');
-        currentPlaybackRate = parseFloat(this.getAttribute('data-speed'));
-        v.playbackRate = currentPlaybackRate;
-      });
-    }
-
+    // カメラ / 動画ソース
     function openCamera() {
-      stopReverse();
-      vBar.style.display = 'none';
-      camSpinner.style.display = 'flex';
-      camErrorModal.style.display = 'none';
-
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        camSpinner.style.display = 'none';
-        camErrorMsg.innerText = 'ブラウザがカメラ機能に対応していません';
-        camErrorModal.style.display = 'flex';
+        alert('ブラウザがカメラ機能に対応していません');
         return;
       }
-
       navigator.mediaDevices.getUserMedia({
         audio: false,
         video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }
       }).then(function(stream) {
-        camSpinner.style.display = 'none';
         v.srcObject = stream;
-        v.playbackRate = 1.0;
-        v.setAttribute('playsinline', '');
-        v.setAttribute('webkit-playsinline', '');
         v.play();
         setPauseState(false);
         resetAll();
         startLoop();
       }).catch(function(e) {
-        camSpinner.style.display = 'none';
-        camErrorMsg.innerText = 'カメラエラー: ' + e.name;
-        camErrorModal.style.display = 'flex';
+        alert('カメラ起動エラー: ' + e.message);
       });
     }
 
     document.getElementById('b-cam').addEventListener('click', openCamera);
-    bCamRetry.addEventListener('click', openCamera);
 
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
-      stopReverse();
-      if (v.srcObject) { v.srcObject.getTracks().forEach(function(t) { t.stop(); }); v.srcObject = null; }
+      if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
       v.src = URL.createObjectURL(file);
-      vBar.style.display = 'flex';
-      v.playbackRate = currentPlaybackRate;
       v.currentTime = 0;
-      v.pause();
-      setPauseState(true);
+      v.play();
+      setPauseState(false);
       resetAll();
       startLoop();
     });
 
-    vbPlay.addEventListener('click', function() {
-      stopReverse();
-      if (v.paused) { setPauseState(false); } else { setPauseState(true); }
-    });
-
-    vbRev.addEventListener('click', function() {
-      if (isReversing) {
-        stopReverse();
-        setPauseState(true);
-      } else {
-        v.pause();
-        isReversing = true;
-        vbRev.classList.add('active');
-        setPauseState(false);
-
-        if (v.currentTime <= 0.1 && v.duration > 0) {
-          v.currentTime = v.duration - 0.1;
-        }
-
-        var stepSec = 0.06 * currentPlaybackRate;
-        reverseInterval = setInterval(function() {
-          if (v.currentTime <= stepSec) {
-            v.currentTime = 0;
-            stopReverse();
-            setPauseState(true);
-          } else {
-            v.currentTime -= stepSec;
-          }
-        }, 50);
-      }
-    });
-
-    document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
-    document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 1); });
-    document.getElementById('vb-fstep').addEventListener('click', function() { stopReverse(); v.pause(); setPauseState(true); v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
-    v.addEventListener('timeupdate', function() {
-      if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
-    });
-
     bPause.addEventListener('click', function() {
-      if (isPaused) { setPauseState(false); } else { setPauseState(true); }
+      setPauseState(!isPaused);
     });
 
     function startLoop() {
@@ -779,69 +496,54 @@
       requestAnimationFrame(mainLoop);
     }
 
-    function runDiagnostics(imgData, avgLum, glareCount, whiteRatioPct, yellowRatioPct, now) {
-      if (now - lastDiagTime < 250) return;
+    function runDiagnostics(avgLum, glareRatio, avgEdge, whiteRatioPct, yellowRatioPct, now) {
+      if (now - lastDiagTime < 300) return;
       lastDiagTime = now;
 
-      var sumEdge = 0;
-      for (var x = 0; x < PW; x++) { sumEdge += Math.abs(curProf[x]); }
-      var avgEdge = sumEdge / PW;
-
       if (avgLum < 35) {
-        diagMsg.innerText = "❌ 光量不足（暗すぎます）";
+        diagMsg.innerText = "❌ 光量不足 (暗すぎます)";
         diagMsg.style.color = "#ef4444";
       } else if (avgLum > 225) {
-        diagMsg.innerText = "❌ 光量過多（白飛びしています）";
+        diagMsg.innerText = "❌ 光量過多 (白飛び)";
         diagMsg.style.color = "#ef4444";
-      } else if (glareCount > (PW * PH * 0.10)) {
-        diagMsg.innerText = "⚠️ 照り返し過多（反射）";
+      } else if (glareRatio > 0.12) {
+        diagMsg.innerText = "⚠️ 照り返し過多 (反射)";
         diagMsg.style.color = "#facc15";
       } else if (avgEdge < 1.6) {
-        diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）";
+        diagMsg.innerText = "⚠️ コントラスト不足";
         diagMsg.style.color = "#facc15";
       } else {
-        diagMsg.innerText = "🟢 測定環境：良好";
+        diagMsg.innerText = "🟢 測定環境: 良好";
         diagMsg.style.color = "#4ade80";
       }
-      diagSub.innerText = "W(白): " + whiteRatioPct.toFixed(1) + "% | Y(黄): " + yellowRatioPct.toFixed(1) + "% | エッジ: " + avgEdge.toFixed(1);
+      diagSub.innerText = "白: " + whiteRatioPct.toFixed(1) + "% | 黄: " + yellowRatioPct.toFixed(1) + "% | エッジ: " + avgEdge.toFixed(1);
 
-      var dData = diagImgData.data;
-      var dw = 160, dh = 32;
-      for (var dx = 0; dx < dw; dx++) {
-        var srcX = Math.floor(dx * (PW / dw));
+      // エッジプロファイル描画
+      var d = diagImgData.data;
+      for (var dx = 0; dx < 160; dx++) {
+        var srcX = Math.floor(dx * (PW / 160));
         var val = Math.min(255, Math.floor(Math.abs(curProf[srcX]) * 18));
-        for (var dy = 0; dy < dh; dy++) {
-          var pIdx = (dy * dw + dx) * 4;
-          dData[pIdx] = val;
-          dData[pIdx+1] = val;
-          dData[pIdx+2] = val;
-          dData[pIdx+3] = 255;
+        for (var dy = 0; dy < 32; dy++) {
+          var idx = (dy * 160 + dx) * 4;
+          d[idx] = val; d[idx+1] = val; d[idx+2] = val; d[idx+3] = 255;
         }
       }
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    // 解析ループ（60秒動画規格：白抜け0m ➔ 1m黄 ➔ 2m黄 自動補正連携）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
-        var dtSec = (now - lastProcessTime) / 1000.0;
+        var dt = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
 
-        var isVideoActive = (!v.paused || isReversing);
-
-        if (v.readyState >= 2 && v.videoWidth > 0 && isVideoActive) {
-          isPaused = false;
-
-          var vw = v.videoWidth;
-          var vh = v.videoHeight;
+        if (v.readyState >= 2 && v.videoWidth > 0 && !v.paused) {
+          var vw = v.videoWidth, vh = v.videoHeight;
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
           var scale = Math.max(sRect.width / vw, sRect.height / vh);
-          var rw = vw * scale;
-          var rh = vh * scale;
-          var ox = (sRect.width - rw) / 2;
-          var oy = (sRect.height - rh) / 2;
+          var ox = (sRect.width - vw * scale) / 2;
+          var oy = (sRect.height - vh * scale) / 2;
 
           var sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
           var sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
@@ -849,114 +551,94 @@
           var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
 
           ctxProc.drawImage(v, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
-          var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
+          var img = ctxProc.getImageData(0, 0, PW, PH).data;
 
-          var whiteCountTotal = 0;
-          var yellowCountTotal = 0;
-          var glareCount = 0;
-          var sumLumTotal = 0;
+          var whiteCount = 0, yellowCount = 0, glareCount = 0, sumLum = 0;
 
-          // 1. 実物動画のテープ色相判定
+          // 輝度プロファイルとテープ色判定
           for (var x = 0; x < PW; x++) {
-            var sumG = 0;
+            var colLum = 0;
             for (var y = 0; y < PH; y++) {
               var idx = (y * PW + x) * 4;
-              var r = imgData[idx];
-              var g = imgData[idx+1];
-              var b = imgData[idx+2];
-
-              // 白テープ（シワ・陰影対応）
-              if (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 25 && Math.abs(g - b) < 25) {
-                whiteCountTotal++;
-              }
+              var r = img[idx], g = img[idx+1], b = img[idx+2];
+              if (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 25) whiteCount++;
               if (r > 240 && g > 240 && b > 240) glareCount++;
-              // 黄色テープ
-              if (r > 150 && g > 140 && b < 115 && (r + g - 2 * b) > 90) {
-                yellowCountTotal++;
-              }
+              if (r > 150 && g > 140 && b < 115 && (r + g - 2 * b) > 90) yellowCount++;
 
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
-              sumG += lum;
-              sumLumTotal += lum;
+              colLum += lum; sumLum += lum;
             }
-            rawProf[x] = sumG / PH;
+            rawProf[x] = colLum / PH;
           }
 
+          // 1次元微分エッジプロファイル生成
           for (var x = 0; x < PW; x++) {
-            if (x === 0) {
-              curProf[x] = rawProf[1] - rawProf[0];
-            } else if (x === PW - 1) {
-              curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
-            } else {
-              curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
-            }
+            if (x === 0) curProf[x] = rawProf[1] - rawProf[0];
+            else if (x === PW - 1) curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
+            else curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
           }
 
           var totalPixels = PW * PH;
-          var whiteRatio = whiteCountTotal / totalPixels;
-          var yellowRatio = yellowCountTotal / totalPixels;
-          runDiagnostics(imgData, sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
+          var whiteRatio = whiteCount / totalPixels;
+          var yellowRatio = yellowCount / totalPixels;
 
-          // 2. 自動検知（60秒動画の正解シーケンス連携）
+          var sumEdge = 0;
+          for (var x = 0; x < PW; x++) sumEdge += Math.abs(curProf[x]);
+          runDiagnostics(sumLum / totalPixels, glareCount / totalPixels, sumEdge / PW, whiteRatio * 100, yellowRatio * 100, now);
+
+          // 自動校正シーケンス
           if (operationMode === 'AUTO') {
-            var isWhitePresent = whiteRatio > 0.10;
-            var isYellowPresent = yellowRatio > 0.08;
+            var isWhite = whiteRatio > 0.10;
+            var isYellow = yellowRatio > 0.08;
 
             if (autoState === 'WAIT_HEAD_INSIDE') {
-              if (isWhitePresent) {
+              if (isWhite) {
                 whiteFrameCount++;
                 if (whiteFrameCount >= 2) {
                   autoState = 'WAIT_HEAD_TRAILING';
-                  statusBadge.innerText = 'ヘッド通過中...';
+                  statusBadge.innerText = 'ヘッド進入検知';
                 }
-              } else {
-                whiteFrameCount = 0;
-              }
+              } else { whiteFrameCount = 0; }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              // 白テープ抜け完了 ➔ 0.00m リセット＆積算開始
               if (whiteRatio < 0.05) {
                 autoState = 'TRACKING_WAIT_YEL1';
-                totalDist = 0.0;
-                totalPxSinceStart = 0.0;
+                totalDist = 0.0; totalPxSinceStart = 0.0;
                 statusBadge.className = 'active';
                 statusBadge.innerText = '測定中 (1m黄待ち)';
-                diagPanel.style.display = 'none';
                 updateDistUI();
-                speak('ヘッド通過、測定を開始します。', 2);
+                speak('測定を開始します。測定を開始します', 1);
               }
             } else if (autoState === 'TRACKING_WAIT_YEL1') {
-              if (isYellowPresent) {
+              if (isYellow) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 500) {
-                // 1本目黄色テープ抜け完了 ➔ 1.00m 地点で1次校正
+              } else if (isInsideYellow && !isYellow && totalPxSinceStart > 500) {
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
-                scaleFactor = totalPxSinceStart / 1000.0; // 実測スケール確定
+                scaleFactor = totalPxSinceStart / 1000.0;
                 totalDist = 1.0;
                 statusBadge.className = 'cal1';
-                statusBadge.innerText = '1次校正済 (1.00m / 2m黄待ち)';
+                statusBadge.innerText = '1次校正済 (1.00m)';
                 speak('1メートル通過、1次校正完了', 1);
               }
             } else if (autoState === 'TRACKING_WAIT_YEL2') {
-              if (isYellowPresent) {
+              if (isYellow) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1600)) {
-                // 2本目黄色テープ抜け完了 ➔ 2.00m 地点で本校正
+              } else if (isInsideYellow && !isYellow && totalPxSinceStart > (scaleFactor * 1600)) {
                 isInsideYellow = false;
                 autoState = 'TRACKING_FINAL';
-                scaleFactor = totalPxSinceStart / 2000.0; // 最終最高精度スケール確定
+                scaleFactor = totalPxSinceStart / 2000.0;
                 totalDist = 2.0;
                 statusBadge.className = 'cal2';
-                statusBadge.innerText = '本校正完了 (2.00m / 最高精度)';
+                statusBadge.innerText = '本校正完了 (2.00m)';
                 speak('2メートル通過、本校正完了しました', 1);
               }
             }
           }
 
-          // 3. 相関トラッキング
           var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
+          // 相関マッチングによる移動量推定
           if (canTrack && hasPrevProf) {
             var maxS = 40, bestS = 0, minDiff = 99999999;
             for (var s = -maxS; s <= maxS; s++) {
@@ -969,12 +651,10 @@
 
             var shiftPx = (bestS * moveDirection) * (swSrc / PW);
 
+            // 逆送り検出
             if (shiftPx < -1.5) {
               backwardStreak++;
               if (backwardStreak >= 3) {
-                errorBanner.innerText = '🔄 バック中...';
-                errorBanner.style.background = 'rgba(59, 130, 246, 0.95)';
-                errorBanner.style.borderColor = '#93c5fd';
                 errorBanner.style.display = 'block';
               }
             } else {
@@ -989,15 +669,14 @@
               updateDistUI();
               checkDistanceAnnouncements(totalDist);
 
-              if (dtSec > 0 && dtSec < 0.25) {
-                var instSpeed = (Math.abs(deltaM) / dtSec) * 60.0;
-                speedSamples.push(instSpeed);
+              if (dt > 0 && dt < 0.25) {
+                speedSamples.push((Math.abs(deltaM) / dt) * 60.0);
               }
             }
 
             if (now - lastSpeedTime > 500) {
               if (speedSamples.length > 0) {
-                var avg = speedSamples.reduce(function(a, b) { return a + b; }, 0) / speedSamples.length;
+                var avg = speedSamples.reduce(function(a, b){ return a + b; }, 0) / speedSamples.length;
                 currentSpeed = currentSpeed * 0.3 + avg * 0.7;
                 speedSamples = [];
               } else {
@@ -1013,138 +692,10 @@
 
           prevProf.set(curProf);
           hasPrevProf = true;
-        } else if (v.paused && !isReversing) {
-          txtSpeed.innerText = "0.0";
-          txtEta.innerText = "予想: --分--秒";
-          backwardStreak = 0;
-          errorBanner.style.display = 'none';
-          hasPrevProf = false;
         }
       }
-
       requestAnimationFrame(mainLoop);
     }
-
-    // --- 録画モジュール（最長1分） ---
-    (function() {
-      var mediaRecorder = null;
-      var recordedChunks = [];
-      var recTimerInterval = null;
-      var autoStopTimeout = null;
-      var recSec = 0;
-      var MAX_REC_SEC = 60;
-
-      var bRecStart = document.getElementById('b-rec-start');
-      var bRecStop = document.getElementById('b-rec-stop');
-      var txtRecTimer = document.getElementById('rec-timer');
-
-      function getSupportedMimeType() {
-        var types = [
-          'video/mp4;codecs=avc1',
-          'video/mp4',
-          'video/webm;codecs=vp9',
-          'video/webm;codecs=vp8',
-          'video/webm'
-        ];
-        for (var i = 0; i < types.length; i++) {
-          if (MediaRecorder.isTypeSupported(types[i])) return types[i];
-        }
-        return '';
-      }
-
-      bRecStart.addEventListener('click', function() {
-        if (!v.srcObject) {
-          alert('カメラが起動していません。「カメラ起動」を押してください。');
-          return;
-        }
-        if (typeof MediaRecorder === 'undefined') {
-          alert('お使いのブラウザは録画機能に対応していません。');
-          return;
-        }
-
-        var stream = v.srcObject;
-        var mimeType = getSupportedMimeType();
-        var options = mimeType ? { mimeType: mimeType } : {};
-
-        try {
-          recordedChunks = [];
-          mediaRecorder = new MediaRecorder(stream, options);
-        } catch(e) {
-          alert('録画初期化エラー: ' + e.message);
-          return;
-        }
-
-        mediaRecorder.ondataavailable = function(e) {
-          if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-        };
-
-        mediaRecorder.onstop = function() {
-          cleanupRecUI();
-          exportVideo(mimeType);
-        };
-
-        mediaRecorder.start(1000);
-
-        bRecStart.style.display = 'none';
-        bRecStop.style.display = 'block';
-        txtRecTimer.style.display = 'block';
-        recSec = 0;
-        txtRecTimer.innerText = '● REC 00s / ' + MAX_REC_SEC + 's';
-
-        recTimerInterval = setInterval(function() {
-          recSec++;
-          var secStr = recSec < 10 ? '0' + recSec : recSec;
-          txtRecTimer.innerText = '● REC ' + secStr + 's / ' + MAX_REC_SEC + 's';
-        }, 1000);
-
-        autoStopTimeout = setTimeout(function() {
-          if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-        }, MAX_REC_SEC * 1000);
-      });
-
-      bRecStop.addEventListener('click', function() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-      });
-
-      function cleanupRecUI() {
-        if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-        if (autoStopTimeout) { clearTimeout(autoStopTimeout); autoStopTimeout = null; }
-        bRecStart.style.display = 'block';
-        bRecStop.style.display = 'none';
-        txtRecTimer.style.display = 'none';
-      }
-
-      function exportVideo(mimeType) {
-        if (recordedChunks.length === 0) return;
-        var actualType = mimeType || 'video/mp4';
-        var ext = actualType.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
-        var blob = new Blob(recordedChunks, { type: actualType });
-        var url = URL.createObjectURL(blob);
-
-        var now = new Date();
-        var ts = now.getFullYear() +
-          ('0' + (now.getMonth() + 1)).slice(-2) +
-          ('0' + now.getDate()).slice(-2) + '_' +
-          ('0' + now.getHours()).slice(-2) +
-          ('0' + now.getMinutes()).slice(-2) +
-          ('0' + now.getSeconds()).slice(-2);
-        var filename = 'kameko_sample_' + ts + '.' + ext;
-
-        var a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        setTimeout(function() {
-          URL.revokeObjectURL(url);
-          recordedChunks = [];
-          mediaRecorder = null;
-        }, 1500);
-      }
-    })();
   </script>
 </body>
 </html>
