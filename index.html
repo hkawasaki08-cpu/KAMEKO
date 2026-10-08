@@ -36,7 +36,7 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* ダッシュボード（上部に大きく常時固定） */
+    /* ダッシュボード */
     #dash-container {
       background: #111827;
       padding: 8px 8px 6px;
@@ -55,7 +55,7 @@
     .card-unit { font-size: 12px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 11px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* オプション・設定バー（方向切替＋モード切替） */
+    /* 設定・方向バー */
     #control-subbar {
       background: #18181b;
       padding: 5px 8px;
@@ -72,7 +72,6 @@
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
 
-    /* 延線方向 矢印ボタン（大型） */
     #btn-dir {
       flex: 0 0 74px;
       font-size: 22px;
@@ -103,7 +102,6 @@
       object-fit: cover;
     }
 
-    /* 判定枠（上下幅をケーブルの太さに合わせるガイド枠） */
     #target-box {
       position: absolute;
       top: 15%; left: 3%; width: 94%; height: 70%;
@@ -112,7 +110,7 @@
       z-index: 10; pointer-events: none;
     }
 
-    /* 診断パネル（映像枠の下へ独立配置） */
+    /* 診断パネル */
     #diag-panel {
       background: #0b1329;
       border-bottom: 1px solid #1e293b;
@@ -138,7 +136,7 @@
       display: none; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,0.7);
     }
 
-    /* 録画操作バー（最長1分） */
+    /* 録画バー */
     #rec-controls-bar {
       background: #18181b;
       padding: 6px 8px;
@@ -160,7 +158,7 @@
       display: none; white-space: nowrap;
     }
 
-    /* 動画コントローラー（テスト用） */
+    /* 動画コントローラー */
     #v-bar {
       background: #0f172a; border-bottom: 1px solid #1e293b;
       padding: 5px 8px; display: none; flex-direction: column; gap: 4px;
@@ -180,7 +178,7 @@
     }
     .speed-btn.active { background: #0284c7; color: #fff; border-color: #38bdf8; }
 
-    /* メイン操作ボタン領域 */
+    /* メイン操作ボタン */
     footer {
       background: #18181b;
       padding: 8px 8px calc(14px + env(safe-area-inset-bottom, 12px));
@@ -227,7 +225,6 @@
     <div id="status-badge">手動待機中 (スタート前)</div>
   </header>
 
-  <!-- ダッシュボード表示 -->
   <div id="dash-container">
     <div id="dash">
       <div class="card">
@@ -246,24 +243,18 @@
     </div>
   </div>
 
-  <!-- 設定・方向切替バー（近接・引きボタンを撤去し、矢印＋モード切替に集約） -->
   <div id="control-subbar">
     <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
     <button class="mode-tab active" id="tab-manual">✋ 手動モード (テープ不要)</button>
     <button class="mode-tab" id="tab-auto">🎯 自動テープ検知モード</button>
   </div>
 
-  <!-- 動画・カメラ領域 -->
   <div id="stage">
     <video id="v" playsinline webkit-playsinline muted loop></video>
     <canvas id="c-proc" style="display:none;"></canvas>
-
-    <!-- 判定枠（上下幅ガイド） -->
     <div id="target-box"></div>
-
     <div id="error-banner">🔄 バック中...</div>
 
-    <!-- スピナー ＆ カメラエラーモーダル -->
     <div id="cam-spinner" style="display: none;" class="overlay-modal">
       <div class="spinner"></div>
       <p style="margin-top: 8px; font-size: 13px; color: #fff;">カメラ初期化中...</p>
@@ -278,7 +269,6 @@
     </div>
   </div>
 
-  <!-- 診断パネル（映像枠の下へ独立配置） -->
   <div id="diag-panel">
     <div id="diag-info">
       <span id="diag-msg">🔍 カメラ待機中...</span>
@@ -287,14 +277,12 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <!-- 録画操作バー（最長1分） -->
   <div id="rec-controls-bar">
     <button id="b-rec-start" class="rec-btn">🔴 録画 (最長1分)</button>
     <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 録画停止 (保存)</button>
     <span id="rec-timer">● REC 00s / 60s</span>
   </div>
 
-  <!-- 動画コントローラー（テスト用） -->
   <div id="v-bar">
     <div class="v-row">
       <span style="font-size: 10px; color: #38bdf8; min-width: 40px; font-weight: bold;">速度:</span>
@@ -317,7 +305,6 @@
     </div>
   </div>
 
-  <!-- メイン操作ボタン -->
   <footer>
     <div class="btn-row">
       <button id="b-manual-start" class="purple">▶ 手動スタート (0m)</button>
@@ -335,19 +322,16 @@
 
   <script>
     var operationMode = 'MANUAL';
-    // 近接運用（約25〜30cm・判定枠の上下幅に収める）に固定
-    var scaleFactor = 2.5;
+    var scaleFactor = 2.5; // 近接固定
     var moveDirection = 1; // 1: ➡, -1: ⬅
     var totalDist = 0.0;
     var targetDist = 31.0;
     var isRunning = false;
     var isPaused = false;
 
-    // スタート前不感フラグ
     var isManualTracking = false;
     var currentPlaybackRate = 1.0;
 
-    // 自動検知用ステート
     var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
@@ -360,12 +344,10 @@
     var lastProcessTime = 0;
     var lastDiagTime = 0;
 
-    // 逆再生制御
     var reverseInterval = null;
     var isReversing = false;
     var backwardStreak = 0;
 
-    // 固定バッファ
     var PW = 200;
     var PH = 32;
     var rawProf = new Float32Array(PW);
@@ -381,7 +363,6 @@
     cProc.height = PH;
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
 
-    // 診断用プレビュー
     var diagPanel = document.getElementById('diag-panel');
     var diagMsg = document.getElementById('diag-msg');
     var diagSub = document.getElementById('diag-sub');
@@ -410,7 +391,6 @@
     var camErrorMsg = document.getElementById('cam-error-msg');
     var bCamRetry = document.getElementById('b-cam-retry');
 
-    // 方向切替
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) {
         moveDirection = -1;
@@ -441,7 +421,6 @@
 
     function checkDistanceAnnouncements(currentD) {
       var diff = targetDist - currentD;
-
       if (diff > 10.5) {
         var step5 = Math.floor(currentD / 5.0) * 5;
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
@@ -450,7 +429,6 @@
           return;
         }
       }
-
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
           announcedMarks['rem_' + m] = true;
@@ -458,13 +436,11 @@
           return;
         }
       }
-
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
         announcedMarks['zero'] = true;
         speak('ゼロ、到達しました', 1);
         return;
       }
-
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
         if (overM >= 1 && overM <= 25 && !announcedMarks['over_' + overM]) {
@@ -474,7 +450,6 @@
       }
     }
 
-    // 音声操作
     var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     var recognition = null;
     var isMicListening = false;
@@ -493,13 +468,9 @@
           }
         }
       };
-
       recognition.onend = function() {
-        if (isMicListening) {
-          try { recognition.start(); } catch(e) {}
-        }
+        if (isMicListening) { try { recognition.start(); } catch(e) {} }
       };
-
       recognition.onerror = function(e) {
         if (e.error === 'not-allowed') {
           isMicListening = false;
@@ -587,10 +558,7 @@
     }
 
     function stopReverse() {
-      if (reverseInterval) {
-        clearInterval(reverseInterval);
-        reverseInterval = null;
-      }
+      if (reverseInterval) { clearInterval(reverseInterval); reverseInterval = null; }
       isReversing = false;
       vbRev.classList.remove('active');
     }
@@ -763,14 +731,9 @@
 
     vbPlay.addEventListener('click', function() {
       stopReverse();
-      if (v.paused) {
-        setPauseState(false);
-      } else {
-        setPauseState(true);
-      }
+      if (v.paused) { setPauseState(false); } else { setPauseState(true); }
     });
 
-    // 逆再生改善
     vbRev.addEventListener('click', function() {
       if (isReversing) {
         stopReverse();
@@ -806,11 +769,7 @@
     });
 
     bPause.addEventListener('click', function() {
-      if (isPaused) {
-        setPauseState(false);
-      } else {
-        setPauseState(true);
-      }
+      if (isPaused) { setPauseState(false); } else { setPauseState(true); }
     });
 
     function startLoop() {
@@ -819,7 +778,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    function runDiagnostics(imgData, avgLum, glareCount, now) {
+    function runDiagnostics(imgData, avgLum, glareCount, whiteRatioPct, now) {
       if (now - lastDiagTime < 250) return;
       lastDiagTime = now;
 
@@ -830,24 +789,20 @@
       if (avgLum < 35) {
         diagMsg.innerText = "❌ 光量不足（暗すぎます）";
         diagMsg.style.color = "#ef4444";
-        diagSub.innerText = "照明でケーブルを照らしてください";
-      } else if (avgLum > 220) {
+      } else if (avgLum > 225) {
         diagMsg.innerText = "❌ 光量過多（白飛びしています）";
         diagMsg.style.color = "#ef4444";
-        diagSub.innerText = "直射日光・光源の角度を調整してください";
-      } else if (glareCount > (PW * PH * 0.08)) {
+      } else if (glareCount > (PW * PH * 0.10)) {
         diagMsg.innerText = "⚠️ 照り返し過多（反射）";
         diagMsg.style.color = "#facc15";
-        diagSub.innerText = "斜めから照らすか角度を変えてください";
-      } else if (avgEdge < 1.8) {
+      } else if (avgEdge < 1.6) {
         diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）";
         diagMsg.style.color = "#facc15";
-        diagSub.innerText = "印字が見えるようピント/距離を調整";
       } else {
-        diagMsg.innerText = "🟢 測定環境：良好（準備完了）";
+        diagMsg.innerText = "🟢 測定環境：良好";
         diagMsg.style.color = "#4ade80";
-        diagSub.innerText = "十分なエッジ特徴量を検知";
       }
+      diagSub.innerText = "エッジ強度: " + avgEdge.toFixed(1) + " | 白比率: " + whiteRatioPct.toFixed(1) + "%";
 
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
@@ -865,7 +820,7 @@
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    // 解析ループ
+    // 解析ループ（白テープしきい値緩和・最適化版）
     function mainLoop(now) {
       if (now - lastProcessTime > 30) {
         var dtSec = (now - lastProcessTime) / 1000.0;
@@ -900,6 +855,7 @@
           var glareCount = 0;
           var sumLumTotal = 0;
 
+          // 1. 現場の粉塵・陰影に対応した白テープ判定（RGB > 165）
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -908,9 +864,12 @@
               var g = imgData[idx+1];
               var b = imgData[idx+2];
 
-              if (r > 195 && g > 195 && b > 190) whiteCountTotal++;
+              // 汚れや影を許容した白判定
+              if (r > 165 && g > 165 && b > 155 && Math.abs(r - g) < 25 && Math.abs(g - b) < 25) {
+                whiteCountTotal++;
+              }
               if (r > 240 && g > 240 && b > 240) glareCount++;
-              if (r > 160 && g > 150 && b < 100 && (r + g - 2 * b) > 110) yellowCountTotal++;
+              if (r > 155 && g > 145 && b < 110 && (r + g - 2 * b) > 95) yellowCountTotal++;
 
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
               sumG += lum;
@@ -929,27 +888,30 @@
             }
           }
 
-          runDiagnostics(imgData, sumLumTotal / (PW * PH), glareCount, now);
+          var totalPixels = PW * PH;
+          var whiteRatio = whiteCountTotal / totalPixels;
+          runDiagnostics(imgData, sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, now);
 
-          // 自動検知
+          // 2. 自動検知（しきい値緩和版）
           if (operationMode === 'AUTO') {
-            var totalPixels = PW * PH;
-            var isWhitePresent = whiteCountTotal > (totalPixels * 0.22);
-            var isYellowPresent = yellowCountTotal > (totalPixels * 0.12);
+            var isWhitePresent = whiteRatio > 0.12; // 12%以上で白テープ検出
+            var isYellowPresent = (yellowCountTotal / totalPixels) > 0.10;
 
+            // 進入端（40px幅）の白判定
             var entryWhiteSum = 0;
             var entryWidth = 40;
             if (moveDirection === 1) {
-              for (var ex = 0; ex < entryWidth; ex++) { if (rawProf[ex] > 185) entryWhiteSum++; }
+              for (var ex = 0; ex < entryWidth; ex++) { if (rawProf[ex] > 160) entryWhiteSum++; }
             } else {
-              for (var ex = PW - entryWidth; ex < PW; ex++) { if (rawProf[ex] > 185) entryWhiteSum++; }
+              for (var ex = PW - entryWidth; ex < PW; ex++) { if (rawProf[ex] > 160) entryWhiteSum++; }
             }
-            var isEntryWhite = entryWhiteSum > (entryWidth * 0.6);
+            var isEntryWhite = (entryWhiteSum / entryWidth) > 0.30;
 
             if (autoState === 'WAIT_HEAD_INSIDE') {
-              if (isWhitePresent && isEntryWhite) {
+              // 全体の白比率が十分、または進入端が白ければヘッド進入とみなす
+              if (isWhitePresent || (whiteRatio > 0.08 && isEntryWhite)) {
                 whiteFrameCount++;
-                if (whiteFrameCount >= 3) {
+                if (whiteFrameCount >= 2) {
                   autoState = 'WAIT_HEAD_TRAILING';
                   statusBadge.innerText = 'ヘッド通過中...';
                 }
@@ -957,7 +919,8 @@
                 whiteFrameCount = 0;
               }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              if (!isWhitePresent && !isEntryWhite) {
+              // 白テープが枠を抜けきった瞬間（白比率が6%未満に低下）
+              if (whiteRatio < 0.06) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0;
                 totalPxSinceStart = 0.0;
@@ -994,6 +957,7 @@
             }
           }
 
+          // 3. 相関トラッキング
           var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
@@ -1065,7 +1029,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // --- 録画モジュール（最長1分） ---
+    // 録画モジュール
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
