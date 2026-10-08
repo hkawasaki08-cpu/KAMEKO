@@ -170,7 +170,7 @@
   </div>
 
   <div id="stage">
-    <video id="v" playsinline webkit-playsinline muted loop preload="auto"></video>
+    <video id="v" playsinline webkit-playsinline muted loop preload="metadata"></video>
     <canvas id="c-proc" style="display:none;"></canvas>
     <div id="target-box"></div>
     <div id="error-banner">🔄 バック中...</div>
@@ -208,7 +208,7 @@
       <button class="v-btn" id="vb-rev">◀ 逆再生</button>
       <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
       <button class="v-btn" id="vb-fstep">コマ送 ▶</button>
-      <button class="v-btn" id="vb-f1">+1秒</button>
+      <button class="v-btn" id="vb-f1">+0.1秒</button>
     </div>
   </div>
 
@@ -264,14 +264,12 @@
     var v = document.getElementById('v');
     var cProc = document.getElementById('c-proc');
     cProc.width = PW; cProc.height = PH;
-    var ctxProc = cProc.getContext('2d', { willReadFrequently: true });
+    var ctxProc = cProc.getContext('2d', { willReadFrequently: true, alpha: false });
 
     var diagMsg = document.getElementById('diag-msg');
     var diagSub = document.getElementById('diag-sub');
     var diagCanvas = document.getElementById('diag-canvas');
-    var ctxDiag = diagCanvas.getContext('2d');
-    
-    // Safariクラッシュ防止：ImageDataの完全事前確保
+    var ctxDiag = diagCanvas.getContext('2d', { alpha: false });
     var diagImgData = ctxDiag.createImageData(160, 32);
 
     var txtDist = document.getElementById('txt-dist');
@@ -555,7 +553,6 @@
       stopReverse();
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
       
-      // メモリ解放を行ってから新しいURLを設定
       if (v.src) URL.revokeObjectURL(v.src);
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
@@ -595,7 +592,12 @@
     });
 
     document.getElementById('vb-b1').addEventListener('click', function() { v.currentTime = Math.max(0, v.currentTime - 1); });
-    document.getElementById('vb-f1').addEventListener('click', function() { v.currentTime = Math.min(v.duration || 999, v.currentTime + 1); });
+    
+    // 【変更】+0.1秒（100ms送り）
+    document.getElementById('vb-f1').addEventListener('click', function() { 
+      v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1); 
+    });
+
     document.getElementById('vb-fstep').addEventListener('click', function() { stopReverse(); v.pause(); setPauseState(true); v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.033); });
     v.addEventListener('timeupdate', function() {
       if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
@@ -609,9 +611,8 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // メモリ生成ゼロの超軽量診断ルーチン
     function runDiagnostics(avgLum, glareCount, whiteRatioPct, yellowRatioPct, now) {
-      if (now - lastDiagTime < 300) return;
+      if (now - lastDiagTime < 400) return;
       lastDiagTime = now;
 
       var sumEdge = 0;
@@ -631,7 +632,6 @@
       }
       diagSub.innerText = "W(白): " + whiteRatioPct.toFixed(1) + "% | Y(黄): " + yellowRatioPct.toFixed(1) + "% | エッジ: " + avgEdge.toFixed(1);
 
-      // 固定バッファ再利用
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
       for (var dx = 0; dx < dw; dx++) {
@@ -646,7 +646,7 @@
     }
 
     function mainLoop(now) {
-      if (now - lastProcessTime > 30) {
+      if (now - lastProcessTime > 32) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
 
@@ -682,17 +682,14 @@
               var lum = 0.299 * r + 0.587 * g + 0.114 * b;
               sumG += lum; sumLumTotal += lum;
 
-              // 【白テープ】シワ・陰影適応（実測18.6%を安定検知）
               if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) whiteCountTotal++;
               if (lum > 235) glareCount++;
 
-              // 【黄色テープ】青成分が低く赤緑が高い色条件
               if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) yellowCountTotal++;
             }
             rawProf[x] = sumG / PH;
           }
 
-          // ゼロアロケーション微分プロファイル
           for (var x = 0; x < PW; x++) {
             if (x === 0) curProf[x] = rawProf[1] - rawProf[0];
             else if (x === PW - 1) curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
@@ -704,10 +701,10 @@
           var yellowRatio = yellowCountTotal / totalPixels;
           runDiagnostics(sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
 
-          // 自動校正シーケンス
+          // 自動校正シーケンス（実測値に基づき最適化）
           if (operationMode === 'AUTO') {
             var isWhitePresent = whiteRatio > 0.08;
-            var isYellowPresent = yellowRatio > 0.06;
+            var isYellowPresent = yellowRatio > 0.05; // 進入しきい値: 5.0%に設定
 
             if (autoState === 'WAIT_HEAD_INSIDE') {
               if (isWhitePresent) {
@@ -718,7 +715,6 @@
                 }
               } else { whiteFrameCount = 0; }
             } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              // 白テープが抜けきったら 0.00m でスタート
               if (whiteRatio < 0.04) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0; totalPxSinceStart = 0.0;
@@ -730,7 +726,7 @@
             } else if (autoState === 'TRACKING_WAIT_YEL1') {
               if (isYellowPresent) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > 450) {
+              } else if (isInsideYellow && yellowRatio < 0.03 && totalPxSinceStart > 450) { // 抜けしきい値: 3.0%
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
                 scaleFactor = totalPxSinceStart / 1000.0;
@@ -742,7 +738,7 @@
             } else if (autoState === 'TRACKING_WAIT_YEL2') {
               if (isYellowPresent) {
                 isInsideYellow = true;
-              } else if (isInsideYellow && !isYellowPresent && totalPxSinceStart > (scaleFactor * 1500)) {
+              } else if (isInsideYellow && yellowRatio < 0.03 && totalPxSinceStart > (scaleFactor * 1500)) {
                 isInsideYellow = false;
                 autoState = 'TRACKING_FINAL';
                 scaleFactor = totalPxSinceStart / 2000.0;
@@ -820,7 +816,6 @@
       requestAnimationFrame(mainLoop);
     }
 
-    // 録画機能（メモリ即時解放）
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
