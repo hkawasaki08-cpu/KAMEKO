@@ -37,9 +37,10 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
+    /* 【改修】距離表示（ダッシュボード）の高さを拡大 */
     #dash-container {
       background: #111827;
-      padding: 4px 6px;
+      padding: 6px 6px;
       border-bottom: 1px solid #1f2937;
       flex-shrink: 0;
       z-index: 25;
@@ -48,12 +49,13 @@
     .card {
       flex: 1; background: #000;
       border: 1px solid #374151; border-radius: 6px;
-      padding: 3px 2px; text-align: center;
+      padding: 6px 2px; text-align: center;
     }
-    .card-lbl { font-size: 9px; color: #9ca3af; font-weight: bold; }
-    .card-val { font-size: 20px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
-    .card-unit { font-size: 10px; color: #9ca3af; margin-left: 1px; }
-    .card-sub { font-size: 8px; color: #38bdf8; font-weight: bold; margin-top: 1px; }
+    .card-lbl { font-size: 10px; color: #9ca3af; font-weight: bold; }
+    /* 数値サイズを20pxから26pxに拡大 */
+    .card-val { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .card-unit { font-size: 11px; color: #9ca3af; margin-left: 2px; }
+    .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 2px; }
 
     #control-subbar {
       background: #18181b;
@@ -64,10 +66,11 @@
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
     }
+    /* 【改修】手動・自動ボタンの文字サイズを17pxに拡大 */
     .mode-tab {
       flex: 1; background: #1e293b; border: 1.5px solid #475569; color: #94a3b8;
-      padding: 10px 0; border-radius: 6px; font-size: 13px; font-weight: 900;
-      cursor: pointer; text-align: center; min-height: 42px;
+      padding: 8px 0; border-radius: 6px; font-size: 17px; font-weight: 900;
+      cursor: pointer; text-align: center; min-height: 44px;
       display: flex; align-items: center; justify-content: center;
     }
     .mode-tab.active { background: #0284c7; border-color: #38bdf8; color: #fff; }
@@ -81,7 +84,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 42px;
+      min-height: 44px;
     }
     #btn-dir.dir-auto { background: #334155; border: 1.5px solid #64748b; color: #38bdf8; }
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
@@ -90,7 +93,7 @@
     #stage {
       position: relative;
       flex: 1;
-      min-height: 80px;
+      min-height: 75px;
       max-height: 155px;
       width: 100%;
       background: #000;
@@ -133,7 +136,6 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 【改修】録画バー：ボタン高さを再生ボタンと同じ34pxに統一 */
     #rec-controls-bar {
       background: #18181b;
       padding: 4px 6px;
@@ -158,7 +160,6 @@
       display: none; white-space: nowrap;
     }
 
-    /* 動画コントローラー */
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
@@ -170,7 +171,6 @@
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
     
-    /* 下段コントローラー（再生ボタン等）の高さ: 34px */
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
       border: 1.5px solid #475569; padding: 0; border-radius: 6px;
@@ -180,7 +180,6 @@
     }
     .v-btn.active { background: #9333ea; border-color: #c084fc; }
 
-    /* 【改修】0.5ボタンおよび中央表示の高さを再生ボタンと同じ34pxに統一 */
     .spd-step-btn {
       flex: 0 0 58px;
       background: #1e293b; color: #38bdf8;
@@ -290,6 +289,7 @@
     <div id="status-badge">待機中 (ヘッド待ち)</div>
   </header>
 
+  <!-- 【改修】大型化した距離表示ダッシュボード -->
   <div id="dash-container">
     <div id="dash">
       <div class="card">
@@ -310,6 +310,7 @@
 
   <div id="control-subbar">
     <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
+    <!-- 【改修】文字サイズを17pxに拡大 -->
     <button class="mode-tab" id="tab-manual">✋ 手動</button>
     <button class="mode-tab active" id="tab-auto">🎯 自動</button>
   </div>
@@ -329,14 +330,12 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <!-- 【改修】録画バー：高さ34pxで再生ボタンと統一 -->
   <div id="rec-controls-bar">
     <span id="rec-timer">● REC 00s / 60s</span>
     <button id="b-rec-start" class="rec-btn">🔴 録画</button>
     <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止</button>
   </div>
 
-  <!-- 【改修】動画コントローラー：±0.5ボタンと中央表示を高さ34pxに統一 -->
   <div id="v-bar">
     <div class="v-row">
       <span style="font-size: 10px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
