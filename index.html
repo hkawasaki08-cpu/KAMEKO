@@ -174,7 +174,7 @@
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 3px 6px;
+      padding: 4px 6px;
       display: none;
       flex-direction: column;
       gap: 4px;
@@ -182,9 +182,10 @@
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
 
+    /* CVTサイズ選択 ＆ 位置スライダー行 */
     .align-slider-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       background: #1e293b;
       padding: 3px 6px;
@@ -192,6 +193,16 @@
       font-size: 10px;
       color: #38bdf8;
       font-weight: bold;
+    }
+    .align-slider-row select {
+      background: #0f172a;
+      color: #4ade80;
+      border: 1px solid #0284c7;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 2px 4px;
+      cursor: pointer;
     }
     .align-slider-row input[type="range"] {
       flex: 1;
@@ -304,7 +315,6 @@
   </div>
 
   <div id="control-subbar">
-    <!-- 表示のみ左右を入れ替え（初期: 内部 1 ➔ 表示 ⬅） -->
     <button class="dir-rev" id="btn-dir" title="タップで延線方向切替">⬅</button>
     <button class="mode-tab active" id="tab-manual">✋ 手動</button>
     <button class="mode-tab" id="tab-auto">🎯 自動</button>
@@ -334,7 +344,22 @@
   </div>
 
   <div id="v-bar">
+    <!-- CVTサイズ選択 ＆ 位置スライダー -->
     <div class="align-slider-row">
+      <span>線種:</span>
+      <select id="sel-cvt-size" title="6.6kV CVT仕上外径を選択">
+        <option value="42">22sq (42mm)</option>
+        <option value="46">38sq (46mm)</option>
+        <option value="50">60sq (50mm)</option>
+        <option value="57">100sq (57mm)</option>
+        <option value="65">150sq (65mm)</option>
+        <option value="72">200sq (72mm)</option>
+        <option value="76">250sq (76mm)</option>
+        <option value="85">325sq (85mm)</option>
+        <option value="89" selected>400sq (89mm)</option>
+        <option value="98">500sq (98mm)</option>
+        <option value="106">600sq (106mm)</option>
+      </select>
       <span>↕ 位置:</span>
       <input type="range" id="sl-video-y" min="0" max="100" value="90">
       <span>🔍 拡大:</span>
@@ -356,7 +381,7 @@
       <button class="v-btn" id="vb-rev">◀ 逆転</button>
       <button class="v-btn" id="vb-play" style="background:#0284c7;">一時停止 ⏸</button>
       <button class="v-btn" id="vb-f1">+0.1秒</button>
-      <button class="v-btn" id="b-test-cal" title="1つ目の黄色テープで押下、2つ目で再度押下">📐 2m校正/検証</button>
+      <button class="v-btn" id="b-test-cal" title="精密検定オプション: 1つ目の黄色テープで押下、2つ目で再度押下">📐 2m校正/検証</button>
     </div>
   </div>
 
@@ -376,9 +401,11 @@
 
   <script>
     var operationMode = 'MANUAL';
-    var scaleFactor = 2.675;
+    
+    // 【新仕様】CVT仕上外径ベースの動的スケール管理
+    var nominalCableDiaMm = 89.0; // デフォルト: 400sq (89mm)
+    var scaleFactor = 2.675;     // 初期値
 
-    // 内部処理極性（1 のとき前進加算）
     var moveDirection = 1;
     var autoDirAccumPx = 0.0;
 
@@ -442,6 +469,29 @@
     document.getElementById('b-reload').addEventListener('click', function() {
       if (confirm('画面を再読み込みしますか？')) location.reload();
     });
+
+    // CVTサイズプルダウン変更
+    var selCvtSize = document.getElementById('sel-cvt-size');
+    selCvtSize.addEventListener('change', function() {
+      nominalCableDiaMm = parseFloat(this.value);
+      if (curCableThickPx > 4.0) {
+        updateScaleFromNominalDiameter();
+      }
+      speak(this.options[this.selectedIndex].text + 'に設定しました', 1);
+    });
+
+    // 公称外径からのスケール自動算出
+    function updateScaleFromNominalDiameter() {
+      if (curCableThickPx > 6.0 && nominalCableDiaMm > 10.0) {
+        // 画像切り出し倍率(swSrc / PW)を考慮して実空間スケールを更新
+        var sw = targetBox.offsetWidth || 200;
+        var estScale = (curCableThickPx / nominalCableDiaMm) * (sw / PW);
+        if (estScale > 0.8 && estScale < 6.0) {
+          scaleFactor = estScale;
+          console.log("公称外径からscaleFactorを自動更新:", scaleFactor.toFixed(4), "px/mm");
+        }
+      }
+    }
 
     var PW = 200, PH = 32;
     var rawProf = new Float32Array(PW);
@@ -552,13 +602,14 @@
     var bSpdUp = document.getElementById('b-spd-up');
     var txtSpdVal = document.getElementById('txt-spd-val');
 
+    // 精密検定オプション（2m校正/検証）
     bTestCal.addEventListener('click', function() {
       if (!testCalActive) {
         testCalActive = true;
         testCalStartPx = totalPxSinceStart;
         bTestCal.classList.add('calibrating');
         bTestCal.innerText = '⏹ 2枚目で確定';
-        speak('1つ目のテープを記録しました。2つ目のテープで再度押してください。', 1);
+        speak('精密検定を開始します。2つ目のテープで再度押してください。', 1);
       } else {
         testCalActive = false;
         bTestCal.classList.remove('calibrating');
@@ -569,29 +620,25 @@
         var optimalScale = diffPx / 2000.0;
 
         var errPct = ((currentMeasuredM - 2.0) / 2.0) * 100.0;
-        var msg = "【2m区間 精度検証結果】\n" +
+        var msg = "【精密検定 2m区間測定結果】\n" +
                   "・通過ピクセル数: " + diffPx.toFixed(1) + " px\n" +
-                  "・現状設定での測定値: " + currentMeasuredM.toFixed(2) + " m\n" +
+                  "・現状の測定値: " + currentMeasuredM.toFixed(2) + " m\n" +
                   "・測定誤差: " + (errPct >= 0 ? "+" : "") + errPct.toFixed(1) + " %\n\n" +
-                  "この動画の最適スケール値は 【" + optimalScale.toFixed(4) + "】 です。\n" +
-                  "この値を新しい基準値として適用しますか？";
+                  "最適スケール値: 【" + optimalScale.toFixed(4) + "】\n" +
+                  "この値で上書き校正しますか？";
 
         if (confirm(msg)) {
           scaleFactor = optimalScale;
-          speak('新しいスケール値を適用しました。', 1);
+          speak('精密校正値を適用しました。', 1);
         }
       }
     });
 
-    // 手動トグル時
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) setDirection(-1, true);
       else setDirection(1, true);
     });
 
-    // 【表示のみ左右入れ替え】
-    // 内部 moveDirection === 1  ➔ 表示は「⬅」
-    // 内部 moveDirection === -1 ➔ 表示は「➡」
     function setDirection(dir, isManual) {
       moveDirection = dir;
       if (moveDirection === 1) {
@@ -694,7 +741,6 @@
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
 
-      // 内部値 1 をセット（表示は ⬅）
       if (moveDirection === 0) setDirection(1, false);
 
       totalDist = 0.0; totalPxSinceStart = 0.0;
@@ -702,8 +748,10 @@
       hasPrevProf = false; announcedMarks = {};
       lastShiftS = 0;
 
-      if (curCableThickPx > 4.0) baseCableThickPx = curCableThickPx;
-      else baseCableThickPx = 0.0;
+      if (curCableThickPx > 4.0) {
+        baseCableThickPx = curCableThickPx;
+        updateScaleFromNominalDiameter();
+      }
 
       updateDistUI();
       statusBadge.className = 'active'; statusBadge.innerText = '手動測定中';
@@ -966,8 +1014,8 @@
         diagMsg.innerText = "🟢 測定環境：良好 (高感度解析中)"; diagMsg.style.color = "#4ade80";
       }
 
-      var thickInfo = (baseCableThickPx > 0) ? (" | 太さ比:" + (curCableThickPx / baseCableThickPx).toFixed(2)) : "";
-      diagSub.innerText = "W:" + whiteRatioPct.toFixed(0) + "% | Y:" + yellowRatioPct.toFixed(0) + "% | 特徴強度:" + avgEdge.toFixed(1) + thickInfo;
+      var scaleInfo = " | スケール:" + scaleFactor.toFixed(2);
+      diagSub.innerText = "W:" + whiteRatioPct.toFixed(0) + "% | Y:" + yellowRatioPct.toFixed(0) + "% | 特徴強度:" + avgEdge.toFixed(1) + scaleInfo;
 
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
@@ -1005,7 +1053,7 @@
       var rawThick = Math.abs(botY - topY);
       if (rawThick >= 6.0 && rawThick <= 30.0) {
         thickHistory.push(rawThick);
-        if (thickHistory.length > 5) thickHistory.shift();
+        if (thickHistory.length > 8) thickHistory.shift();
         var sum = 0;
         for (var i = 0; i < thickHistory.length; i++) sum += thickHistory[i];
         return sum / thickHistory.length;
@@ -1014,7 +1062,6 @@
     }
 
     function mainLoop(now) {
-      // 15fps制御
       if (now - lastProcessTime > 64) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
@@ -1176,22 +1223,6 @@
             lastShiftS = bestS;
 
             var rawShiftPx = bestS * (swSrc / PW);
-
-            /* 【初動ベクトルの自動判定】 */
-            if (moveDirection === 0) {
-              if (Math.abs(rawShiftPx) > 0.5) {
-                autoDirAccumPx += rawShiftPx;
-                if (autoDirAccumPx > 25.0) {
-                  // 正の変位で内部 1（表示 ⬅）に確定
-                  setDirection(1, false);
-                } else if (autoDirAccumPx < -25.0) {
-                  // 負の変位で内部 -1（表示 ➡）に確定
-                  setDirection(-1, false);
-                }
-              }
-            }
-
-            // 内部処理はそのまま（moveDirection = 1 のとき前進加算）
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
 
@@ -1202,7 +1233,6 @@
               }
             }
 
-            // バック判定は廃止済み（そのまま積算）
             if (Math.abs(shiftPx) > 0.001) {
               var deltaM = (shiftPx / scaleFactor) / 1000.0;
               totalDist += deltaM;
