@@ -37,7 +37,7 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* ダッシュボードカード（縦幅拡大・min-height: 84px） */
+    /* ダッシュボードカード */
     #dash-container {
       background: #111827;
       padding: 6px 6px;
@@ -95,6 +95,7 @@
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
+    /* 映像ステージ（contain 表示に対応） */
     #stage {
       position: relative;
       flex: 1;
@@ -107,7 +108,8 @@
     }
     video {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: cover;
+      object-fit: contain; /* 動画ファイルが見切れないよう全体収容 */
+      background: #000;
     }
     #target-box {
       position: absolute;
@@ -183,7 +185,6 @@
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
     
-    /* コントローラー行（高さ: 17px） */
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
       border: 1px solid #475569; padding: 0; border-radius: 4px;
@@ -225,17 +226,8 @@
       z-index: 40;
     }
     
-    .btn-row-top {
-      display: flex;
-      gap: 5px;
-      align-items: stretch;
-    }
-
-    .btn-row-bottom {
-      display: flex;
-      gap: 5px;
-      align-items: stretch;
-    }
+    .btn-row-top { display: flex; gap: 5px; align-items: stretch; }
+    .btn-row-bottom { display: flex; gap: 5px; align-items: stretch; }
     
     button, label.btn {
       background: #27272a; color: #fff;
@@ -251,49 +243,16 @@
     button.mic-on { background: #dc2626 !important; border-color: #ef4444 !important; }
     input[type="file"] { display: none; }
 
-    /* 3列同期レイアウト */
-    .col-left-main {
-      flex: 1.3 !important;
-      min-height: 58px;
-    }
-    .col-center-wide {
-      flex: 1.6 !important;
-      min-height: 58px;
-    }
-    .col-right-fixed {
-      flex: 0 0 68px !important;
-      min-height: 58px;
-      padding: 0 !important;
-    }
+    .col-left-main { flex: 1.3 !important; min-height: 58px; }
+    .col-center-wide { flex: 1.6 !important; min-height: 58px; }
+    .col-right-fixed { flex: 0 0 68px !important; min-height: 58px; padding: 0 !important; }
 
-    #b-pause {
-      font-size: 15px;
-      font-weight: 900;
-      box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4);
-    }
-    #b-zero {
-      font-size: 14px;
-      font-weight: 900;
-      color: #f87171;
-    }
-    #b-manual-start {
-      font-size: 13px;
-      font-weight: 900;
-      line-height: 1.3;
-    }
-    #b-set-target {
-      font-size: 16px;
-      font-weight: 900;
-      letter-spacing: 0.5px;
-    }
-    #b-mic {
-      font-size: 11px;
-      flex-direction: column;
-      gap: 2px;
-    }
-    #btn-video-label {
-      font-size: 12px;
-    }
+    #b-pause { font-size: 15px; font-weight: 900; box-shadow: 0 2px 8px rgba(22, 163, 74, 0.4); }
+    #b-zero { font-size: 14px; font-weight: 900; color: #f87171; }
+    #b-manual-start { font-size: 13px; font-weight: 900; line-height: 1.3; }
+    #b-set-target { font-size: 16px; font-weight: 900; letter-spacing: 0.5px; }
+    #b-mic { font-size: 11px; flex-direction: column; gap: 2px; }
+    #btn-video-label { font-size: 12px; }
   </style>
 </head>
 <body>
@@ -342,7 +301,6 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <!-- 録画コントロールバー -->
   <div id="rec-controls-bar">
     <span id="rec-timer">● REC 00:00</span>
     <button id="b-reload" title="ページを再読み込み">🔄 リロード</button>
@@ -403,10 +361,10 @@
     var totalPxSinceStart = 0.0;
     var whiteFrameCount = 0;
 
-    /* --- 【解決策C】ケーブル外径（太さ）追従型・撮影距離自己補正変数 --- */
-    var baseCableThickPx = 0.0;     // 基準太さ（D0）
-    var curCableThickPx = 0.0;      // 現フレームの平滑化太さ（Dcur）
-    var thickHistory = [];          // 太さのローパスフィルタ用配列
+    /* ケーブル外径（太さ）追従型補正 */
+    var baseCableThickPx = 0.0;
+    var curCableThickPx = 0.0;
+    var thickHistory = [];
 
     var announcedMarks = {};
     var speedSamples = [];
@@ -421,15 +379,13 @@
     var isCameraOpening = false;
     var cameraPermissionTimeout = null;
 
-    /* 画面自動ロック（スリープ）防止制御 */
+    /* 画面自動ロック防止 */
     var wakeLock = null;
     async function requestWakeLock() {
       try {
         if ('wakeLock' in navigator) {
           wakeLock = await navigator.wakeLock.request('screen');
-          wakeLock.addEventListener('release', function() {
-            wakeLock = null;
-          });
+          wakeLock.addEventListener('release', function() { wakeLock = null; });
         }
       } catch (err) {
         console.warn('Wake Lock request failed:', err);
@@ -442,11 +398,8 @@
       }
     });
 
-    // リロードボタンの動作
     document.getElementById('b-reload').addEventListener('click', function() {
-      if (confirm('画面を再読み込みしますか？')) {
-        location.reload();
-      }
+      if (confirm('画面を再読み込みしますか？')) location.reload();
     });
 
     var PW = 200, PH = 32;
@@ -493,26 +446,18 @@
     var txtSpdVal = document.getElementById('txt-spd-val');
 
     btnDir.addEventListener('click', function() {
-      if (moveDirection === 1) {
-        setDirection(-1, true);
-      } else {
-        setDirection(1, true);
-      }
+      if (moveDirection === 1) setDirection(-1, true);
+      else setDirection(1, true);
     });
 
     function setDirection(dir, isManual) {
       moveDirection = dir;
       if (moveDirection === 1) {
-        btnDir.innerText = '➡';
-        btnDir.className = 'dir-fwd';
-        speak('右向きに設定しました', 1);
+        btnDir.innerText = '➡'; btnDir.className = 'dir-fwd'; speak('右向きに設定しました', 1);
       } else if (moveDirection === -1) {
-        btnDir.innerText = '⬅';
-        btnDir.className = 'dir-rev';
-        speak('左向きに設定しました', 1);
+        btnDir.innerText = '⬅'; btnDir.className = 'dir-rev'; speak('左向きに設定しました', 1);
       } else {
-        btnDir.innerText = '🔄';
-        btnDir.className = 'dir-auto';
+        btnDir.innerText = '🔄'; btnDir.className = 'dir-auto';
       }
       backwardStreak = 0;
       errorBanner.style.display = 'none';
@@ -524,8 +469,7 @@
       var times = count || 1;
       for (var i = 0; i < times; i++) {
         var uttr = new SpeechSynthesisUtterance(text);
-        uttr.lang = 'ja-JP';
-        uttr.rate = 1.15;
+        uttr.lang = 'ja-JP'; uttr.rate = 1.15;
         window.speechSynthesis.speak(uttr);
       }
     }
@@ -535,27 +479,21 @@
       if (diff > 10.5) {
         var step5 = Math.floor(currentD / 5.0) * 5;
         if (step5 >= 5 && (currentD - step5) < 0.8 && !announcedMarks['fwd_' + step5]) {
-          announcedMarks['fwd_' + step5] = true;
-          speak(step5 + 'メートル', 1);
+          announcedMarks['fwd_' + step5] = true; speak(step5 + 'メートル', 1);
         }
       }
       for (var m = 10; m >= 1; m--) {
         if (diff <= m && !announcedMarks['rem_' + m]) {
-          announcedMarks['rem_' + m] = true;
-          speak(m + 'メートル', 1);
-          return;
+          announcedMarks['rem_' + m] = true; speak(m + 'メートル', 1); return;
         }
       }
       if (diff <= 0.05 && diff >= -0.3 && !announcedMarks['zero']) {
-        announcedMarks['zero'] = true;
-        speak('ゼロ、到達しました', 1);
-        return;
+        announcedMarks['zero'] = true; speak('ゼロ、到達しました', 1); return;
       }
       if (diff < 0) {
         var overM = Math.floor(Math.abs(diff));
         if (overM >= 1 && overM <= 25 && !announcedMarks['over_' + overM]) {
-          announcedMarks['over_' + overM] = true;
-          speak('プラス ' + overM + 'メートル', 1);
+          announcedMarks['over_' + overM] = true; speak('プラス ' + overM + 'メートル', 1);
         }
       }
     }
@@ -566,9 +504,7 @@
 
     if (SpeechRecognition) {
       recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
-      recognition.continuous = true;
-      recognition.interimResults = false;
+      recognition.lang = 'ja-JP'; recognition.continuous = true; recognition.interimResults = false;
       recognition.onresult = function(event) {
         for (var i = event.resultIndex; i < event.results.length; i++) {
           if (event.results[i].isFinal) {
@@ -587,14 +523,10 @@
       isMicListening = !isMicListening;
       if (isMicListening) {
         try { recognition.start(); } catch(e){}
-        bMic.classList.add('mic-on');
-        bMic.innerHTML = '🎤<br>待受';
-        speak('音声操作を開始します', 1);
+        bMic.classList.add('mic-on'); bMic.innerHTML = '🎤<br>待受'; speak('音声操作を開始します', 1);
       } else {
         recognition.stop();
-        bMic.classList.remove('mic-on');
-        bMic.innerHTML = '🎤<br>音声';
-        speak('音声操作を終了しました', 1);
+        bMic.classList.remove('mic-on'); bMic.innerHTML = '🎤<br>音声'; speak('音声操作を終了しました', 1);
       }
     });
 
@@ -603,91 +535,52 @@
 
     tabAuto.addEventListener('click', function() {
       operationMode = 'AUTO';
-      tabAuto.className = 'mode-tab active';
-      tabManual.className = 'mode-tab';
-      bManualStart.style.display = 'none';
-      resetAll();
-      speak('自動モードに切り替えました', 1);
-
-      if (!v.srcObject && !v.src) {
-        openCamera();
-      }
+      tabAuto.className = 'mode-tab active'; tabManual.className = 'mode-tab';
+      bManualStart.style.display = 'none'; resetAll(); speak('自動モードに切り替えました', 1);
+      if (!v.srcObject && !v.src) openCamera();
     });
 
     tabManual.addEventListener('click', function() {
       operationMode = 'MANUAL';
-      tabManual.className = 'mode-tab active';
-      tabAuto.className = 'mode-tab';
-      bManualStart.style.display = 'flex';
-      resetAll();
-      speak('手動運用モードです', 1);
-
-      if (!v.srcObject && !v.src) {
-        openCamera();
-      }
+      tabManual.className = 'mode-tab active'; tabAuto.className = 'mode-tab';
+      bManualStart.style.display = 'flex'; resetAll(); speak('手動運用モードです', 1);
+      if (!v.srcObject && !v.src) openCamera();
     });
 
     bManualStart.addEventListener('click', startManualMeasurement);
 
     function startManualMeasurement() {
       requestWakeLock();
-      if (!v.srcObject && !v.src) {
-        openCamera();
-      }
-      
-      if (moveDirection === 0) {
-        setDirection(1, false);
-      }
+      if (!v.srcObject && !v.src) openCamera();
+      if (moveDirection === 0) setDirection(1, false);
 
-      totalDist = 0.0; 
-      totalPxSinceStart = 0.0;
-      isManualTracking = true;
-      setPauseState(false);
-      hasPrevProf = false;
-      announcedMarks = {};
-      backwardStreak = 0;
+      totalDist = 0.0; totalPxSinceStart = 0.0;
+      isManualTracking = true; setPauseState(false);
+      hasPrevProf = false; announcedMarks = {}; backwardStreak = 0;
 
-      // 手動開始時の現在のケーブル太さを基準値として初期ロック
-      if (curCableThickPx > 4.0) {
-        baseCableThickPx = curCableThickPx;
-      } else {
-        baseCableThickPx = 0.0;
-      }
+      if (curCableThickPx > 4.0) baseCableThickPx = curCableThickPx;
+      else baseCableThickPx = 0.0;
 
       updateDistUI();
-      statusBadge.className = 'active';
-      statusBadge.innerText = '手動測定中';
-      
-      if (v.paused && !isReversing) {
-        v.play().catch(function(){});
-      }
+      statusBadge.className = 'active'; statusBadge.innerText = '手動測定中';
+      if (v.paused && !isReversing) v.play().catch(function(){});
       speak('測定を開始します。', 2);
     }
 
     function stopReverse() {
       if (reverseInterval) { clearInterval(reverseInterval); reverseInterval = null; }
-      isReversing = false;
-      vbRev.classList.remove('active');
+      isReversing = false; vbRev.classList.remove('active');
     }
 
     function startReverse(speedMultiplier) {
-      stopReverse();
-      v.pause();
-      isReversing = true;
-      vbRev.classList.add('active');
-      setPauseState(false);
-
-      if (v.currentTime <= 0.05 && v.duration > 0) {
-        v.currentTime = v.duration - 0.05;
-      }
+      stopReverse(); v.pause();
+      isReversing = true; vbRev.classList.add('active'); setPauseState(false);
 
       var mult = Math.abs(speedMultiplier || 1.0);
       var stepSec = 0.05 * mult;
       reverseInterval = setInterval(function() {
         if (v.currentTime <= stepSec) {
-          v.currentTime = 0;
-          stopReverse();
-          setPauseState(true);
+          v.currentTime = 0; stopReverse(); setPauseState(true);
         } else {
           v.currentTime -= stepSec;
         }
@@ -702,55 +595,35 @@
       txtSpdVal.innerText = (currentPlaybackRate >= 0 ? '+' : '') + currentPlaybackRate.toFixed(1) + 'x';
 
       if (currentPlaybackRate > 0) {
-        stopReverse();
-        v.playbackRate = currentPlaybackRate;
+        stopReverse(); v.playbackRate = currentPlaybackRate;
         if (isPaused) setPauseState(false);
       } else if (currentPlaybackRate === 0) {
-        stopReverse();
-        setPauseState(true);
+        stopReverse(); setPauseState(true);
       } else {
         startReverse(currentPlaybackRate);
       }
     }
 
-    bSpdDown.addEventListener('click', function() {
-      applyPlaybackRate(currentPlaybackRate - 0.5);
-    });
-
-    bSpdUp.addEventListener('click', function() {
-      applyPlaybackRate(currentPlaybackRate + 0.5);
-    });
-
+    bSpdDown.addEventListener('click', function() { applyPlaybackRate(currentPlaybackRate - 0.5); });
+    bSpdUp.addEventListener('click', function() { applyPlaybackRate(currentPlaybackRate + 0.5); });
     txtSpdVal.addEventListener('click', function() {
-      if (currentPlaybackRate === 0) {
-        applyPlaybackRate(1.0);
-      } else {
-        applyPlaybackRate(0.0);
-      }
+      if (currentPlaybackRate === 0) applyPlaybackRate(1.0);
+      else applyPlaybackRate(0.0);
     });
 
     function setPauseState(paused) {
       isPaused = paused;
       if (isPaused) {
         stopReverse();
-        bPause.className = 'green col-left-main';
-        bPause.innerText = '測定開始 ▶';
-        vbPlay.innerText = '再生 ▶';
-        txtSpeed.innerText = "0.0";
-        txtEta.innerText = "予想: --分--秒";
-        backwardStreak = 0;
-        errorBanner.style.display = 'none';
+        bPause.className = 'green col-left-main'; bPause.innerText = '測定開始 ▶';
+        vbPlay.innerText = '再生 ▶'; txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
+        backwardStreak = 0; errorBanner.style.display = 'none';
         if (!v.paused) v.pause();
       } else {
         requestWakeLock();
-        if (!v.srcObject && !v.src) {
-          openCamera();
-        }
-        bPause.className = 'orange col-left-main';
-        bPause.innerText = '一時停止 ⏸';
-        vbPlay.innerText = '一時停止 ⏸';
-        hasPrevProf = false;
-        backwardStreak = 0;
+        if (!v.srcObject && !v.src) openCamera();
+        bPause.className = 'orange col-left-main'; bPause.innerText = '一時停止 ⏸';
+        vbPlay.innerText = '一時停止 ⏸'; hasPrevProf = false; backwardStreak = 0;
         if (currentPlaybackRate < 0) {
           startReverse(currentPlaybackRate);
         } else if (v.paused && !isReversing) {
@@ -763,52 +636,37 @@
     function resetAll() {
       stopReverse();
       totalDist = 0.0; totalPxSinceStart = 0.0;
-      isInsideYellow = false;
-      isManualTracking = false;
-      whiteFrameCount = 0;
-      hasPrevProf = false;
-      announcedMarks = {};
-      speedSamples = [];
-      backwardStreak = 0;
+      isInsideYellow = false; isManualTracking = false;
+      whiteFrameCount = 0; hasPrevProf = false;
+      announcedMarks = {}; speedSamples = []; backwardStreak = 0;
       errorBanner.style.display = 'none';
       updateDistUI();
-      txtSpeed.innerText = "0.0";
-      txtEta.innerText = "予想: --分--秒";
+      txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
 
-      moveDirection = 0;
-      autoDirAccumPx = 0.0;
-      btnDir.innerText = '🔄';
-      btnDir.className = 'dir-auto';
+      moveDirection = 0; autoDirAccumPx = 0.0;
+      btnDir.innerText = '🔄'; btnDir.className = 'dir-auto';
 
-      baseCableThickPx = 0.0;
-      curCableThickPx = 0.0;
-      thickHistory = [];
+      baseCableThickPx = 0.0; curCableThickPx = 0.0; thickHistory = [];
 
       if (operationMode === 'AUTO') {
-        autoState = 'WAIT_HEAD_INSIDE';
-        statusBadge.className = '';
-        statusBadge.style.background = '#334155';
-        statusBadge.innerText = '待機中 (ヘッド待ち)';
+        autoState = 'WAIT_HEAD_INSIDE'; statusBadge.className = '';
+        statusBadge.style.background = '#334155'; statusBadge.innerText = '待機中 (ヘッド待ち)';
       } else {
-        statusBadge.className = '';
-        statusBadge.style.background = '#475569';
+        statusBadge.className = ''; statusBadge.style.background = '#475569';
         statusBadge.innerText = '手動待機中';
       }
     }
 
     document.getElementById('b-zero').addEventListener('click', function() {
-      resetAll();
-      speak('リセットしました', 1);
+      resetAll(); speak('リセットしました', 1);
     });
 
     document.getElementById('b-set-target').addEventListener('click', function() {
       var val = window.prompt("目標距離(m)を入力:", targetDist);
       if (val !== null && !isNaN(parseFloat(val))) {
         targetDist = Math.max(1, parseFloat(val));
-        txtTargetVal.innerText = targetDist;
-        announcedMarks = {};
-        updateDistUI();
-        speak(targetDist + 'メートルにセットしました', 1);
+        txtTargetVal.innerText = targetDist; announcedMarks = {};
+        updateDistUI(); speak(targetDist + 'メートルにセットしました', 1);
       }
     });
 
@@ -817,24 +675,19 @@
       var rem = targetDist - totalDist;
       if (rem < 0) {
         txtRemain.innerText = '+' + Math.abs(rem).toFixed(2);
-        txtRemain.style.color = '#ef4444';
-        txtEta.innerText = "予想: 到達済";
-        txtEta.style.color = '#ef4444';
+        txtRemain.style.color = '#ef4444'; txtEta.innerText = "予想: 到達済"; txtEta.style.color = '#ef4444';
       } else {
-        txtRemain.innerText = rem.toFixed(2);
-        txtRemain.style.color = '#38bdf8';
+        txtRemain.innerText = rem.toFixed(2); txtRemain.style.color = '#38bdf8';
         if (currentSpeed >= 0.5) {
           var secTotal = Math.round((rem / currentSpeed) * 60.0);
           txtEta.innerText = "予想: " + Math.floor(secTotal / 60) + "分" + ((secTotal % 60 < 10) ? "0" : "") + (secTotal % 60) + "秒";
           txtEta.style.color = "#38bdf8";
         } else {
-          txtEta.innerText = "予想: --分--秒";
-          txtEta.style.color = "#94a3b8";
+          txtEta.innerText = "予想: --分--秒"; txtEta.style.color = "#94a3b8";
         }
       }
     }
 
-    /* カメラ起動処理 */
     function openCamera() {
       if (isCameraOpening) return;
       isCameraOpening = true;
@@ -842,55 +695,39 @@
       vBar.style.display = 'none';
 
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        isCameraOpening = false;
-        diagMsg.innerText = "❌ カメラ非対応";
+        isCameraOpening = false; diagMsg.innerText = "❌ カメラ非対応";
         return alert('お使いのブラウザはカメラ機能に対応していません');
       }
 
-      diagMsg.innerText = "⏳ カメラ起動中 (許可待ち)...";
-      diagMsg.style.color = "#38bdf8";
+      diagMsg.innerText = "⏳ カメラ起動中 (許可待ち)..."; diagMsg.style.color = "#38bdf8";
 
       if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
       cameraPermissionTimeout = setTimeout(function() {
         if (!v.srcObject) {
-          diagMsg.innerText = "⚠️ カメラ許可を確認してください";
-          diagMsg.style.color = "#facc15";
+          diagMsg.innerText = "⚠️ カメラ許可を確認してください"; diagMsg.style.color = "#facc15";
           diagSub.innerText = "ブラウザ設定でカメラを「許可」してください";
         }
       }, 8000);
 
       navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 640 },
-          frameRate: { ideal: 30 }
-        }
+        video: { facingMode: { ideal: "environment" }, width: { ideal: 640 }, frameRate: { ideal: 30 } }
       }).then(function(stream) {
         if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
         isCameraOpening = false;
-        v.src = "";
-        v.srcObject = stream;
-        v.playbackRate = 1.0;
-        v.play().catch(function(e) {
-          console.warn("Autoplay blocked, waiting for touch:", e);
-        });
-        requestWakeLock();
-        setPauseState(false);
-        resetAll();
-        startLoop();
-        diagMsg.innerText = "🟢 測定環境：初期化完了";
-        diagMsg.style.color = "#4ade80";
+        v.src = ""; v.srcObject = stream; v.playbackRate = 1.0;
+        v.play().catch(function(e) { console.warn("Autoplay blocked:", e); });
+        requestWakeLock(); setPauseState(false); resetAll(); startLoop();
+        diagMsg.innerText = "🟢 測定環境：初期化完了"; diagMsg.style.color = "#4ade80";
       }).catch(function(e) {
         if (cameraPermissionTimeout) clearTimeout(cameraPermissionTimeout);
         isCameraOpening = false;
-        diagMsg.innerText = "❌ カメラ停止 / 不許可";
-        diagMsg.style.color = "#ef4444";
+        diagMsg.innerText = "❌ カメラ停止 / 不許可"; diagMsg.style.color = "#ef4444";
         diagSub.innerText = e.name + ": 設定を確認してください";
-        console.error("Camera access error:", e);
       });
     }
 
+    /* 動画ファイル読込（アスペクト比対応・Infinity対策） */
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -911,21 +748,13 @@
     });
 
     vbPlay.addEventListener('click', function() {
-      if (isReversing) {
-        stopReverse();
-        setPauseState(true);
-      } else {
-        setPauseState(!v.paused);
-      }
+      if (isReversing) { stopReverse(); setPauseState(true); }
+      else setPauseState(!v.paused);
     });
 
     vbRev.addEventListener('click', function() {
-      if (isReversing) {
-        stopReverse();
-        setPauseState(true);
-      } else {
-        startReverse(1.0);
-      }
+      if (isReversing) { stopReverse(); setPauseState(true); }
+      else startReverse(1.0);
     });
 
     document.getElementById('vb-b1').addEventListener('click', function() {
@@ -933,19 +762,23 @@
     });
 
     document.getElementById('vb-f1').addEventListener('click', function() {
-      v.currentTime = Math.min(v.duration || 999, v.currentTime + 0.1);
+      var maxT = isFinite(v.duration) ? v.duration : 99999;
+      v.currentTime = Math.min(maxT, v.currentTime + 0.1);
     });
 
+    /* 【改修】再生時間の Infinity 表示ガード */
     v.addEventListener('timeupdate', function() {
-      if (v.duration) vTime.innerText = v.currentTime.toFixed(1) + 's / ' + v.duration.toFixed(1) + 's';
+      var cur = v.currentTime ? v.currentTime.toFixed(1) : '0.0';
+      if (isFinite(v.duration) && v.duration > 0) {
+        vTime.innerText = cur + 's / ' + v.duration.toFixed(1) + 's';
+      } else {
+        vTime.innerText = cur + 's'; // durationがInfinityの場合は現在秒数のみ表示
+      }
     });
 
     bPause.addEventListener('click', function() {
       requestWakeLock();
-      if (!v.srcObject && !v.src) {
-        openCamera();
-        return;
-      }
+      if (!v.srcObject && !v.src) { openCamera(); return; }
       setPauseState(!isPaused);
     });
 
@@ -991,7 +824,6 @@
       ctxDiag.putImageData(diagImgData, 0, 0);
     }
 
-    /* 【解決策C】ケーブル縦幅（外径ピクセル数）の検出関数 */
     function estimateCableThickness(imgData) {
       var rowLum = new Float32Array(PH);
       for (var y = 0; y < PH; y++) {
@@ -1051,8 +883,10 @@
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
-          var scale = Math.max(sRect.width / vw, sRect.height / vh);
-          var rw = vw * scale, rh = vh * scale;
+          /* 【改修】object-fit: contain に準拠した実表示領域の幾何座標変換 */
+          var scale = Math.min(sRect.width / vw, sRect.height / vh);
+          var rw = vw * scale;
+          var rh = vh * scale;
           var ox = (sRect.width - rw) / 2;
           var oy = (sRect.height - rh) / 2;
 
@@ -1061,10 +895,11 @@
           var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
           var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
 
-          ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
+          if (swSrc > 0 && shSrc > 0) {
+            ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
+          }
           var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
 
-          // ケーブル外径（太さピクセル）の測定
           curCableThickPx = estimateCableThickness(imgData);
 
           var whiteCountTotal = 0, yellowCountTotal = 0, glareCount = 0, sumLumTotal = 0;
@@ -1112,7 +947,7 @@
               if (whiteRatio < 0.04) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0; totalPxSinceStart = 0.0;
-                baseCableThickPx = curCableThickPx; // 基準太さを初期ロック
+                baseCableThickPx = curCableThickPx;
                 statusBadge.className = 'active';
                 statusBadge.innerText = '測定中 (1m黄待ち)';
                 updateDistUI();
@@ -1125,7 +960,7 @@
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
                 scaleFactor = totalPxSinceStart / 1000.0;
-                baseCableThickPx = curCableThickPx; // 1m校正時の太さを基準に更新
+                baseCableThickPx = curCableThickPx;
                 totalDist = 1.0;
                 statusBadge.className = 'cal1';
                 statusBadge.innerText = '1次校正済 (1.00m / 2m黄待ち)';
@@ -1138,7 +973,7 @@
                 isInsideYellow = false;
                 autoState = 'TRACKING_FINAL';
                 scaleFactor = totalPxSinceStart / 2000.0;
-                baseCableThickPx = curCableThickPx; // 2m本校正時の太さを基準に確定
+                baseCableThickPx = curCableThickPx;
                 totalDist = 2.0;
                 statusBadge.className = 'cal2';
                 statusBadge.innerText = '本校正完了 (2.00m / 最高精度)';
@@ -1165,22 +1000,18 @@
             if (moveDirection === 0) {
               if (Math.abs(rawShiftPx) > 0.5) {
                 autoDirAccumPx += rawShiftPx;
-                if (autoDirAccumPx > 25.0) {
-                  setDirection(1, false);
-                } else if (autoDirAccumPx < -25.0) {
-                  setDirection(-1, false);
-                }
+                if (autoDirAccumPx > 25.0) setDirection(1, false);
+                else if (autoDirAccumPx < -25.0) setDirection(-1, false);
               }
             }
 
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
 
-            /* 【解決策C】撮影距離（太さ比率）によるリアルタイム動的補正 */
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
               if (thickRatio > 0.65 && thickRatio < 1.5) {
-                shiftPx *= thickRatio; // 距離変動によるピクセル伸縮を相殺
+                shiftPx *= thickRatio;
               }
             }
 
@@ -1237,7 +1068,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    /* 録画処理（時間無制限） */
+    /* 録画処理 */
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
@@ -1271,25 +1102,18 @@
           var blob = new Blob(recordedChunks, { type: 'video/mp4' });
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = 'kameko_rec_' + Date.now() + '.mp4';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+          a.style.display = 'none'; a.href = url; a.download = 'kameko_rec_' + Date.now() + '.mp4';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
           setTimeout(function() { URL.revokeObjectURL(url); recordedChunks = []; mediaRecorder = null; }, 1500);
         };
 
         mediaRecorder.start(1000);
-        bRecStart.style.display = 'none';
-        bRecStop.style.display = 'flex';
-        txtRecTimer.style.display = 'block';
-        recSec = 0;
+        bRecStart.style.display = 'none'; bRecStop.style.display = 'flex';
+        txtRecTimer.style.display = 'block'; recSec = 0;
         
         recTimerInterval = setInterval(function() {
           recSec++;
-          var m = Math.floor(recSec / 60);
-          var s = recSec % 60;
+          var m = Math.floor(recSec / 60); var s = recSec % 60;
           txtRecTimer.innerText = '● REC ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         }, 1000);
       });
@@ -1300,9 +1124,7 @@
 
       function cleanupRecUI() {
         if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-        bRecStart.style.display = 'flex';
-        bRecStop.style.display = 'none';
-        txtRecTimer.style.display = 'none';
+        bRecStart.style.display = 'flex'; bRecStop.style.display = 'none'; txtRecTimer.style.display = 'none';
       }
     })();
 
