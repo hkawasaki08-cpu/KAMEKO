@@ -174,7 +174,7 @@
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 4px 6px;
+      padding: 3px 6px;
       display: none;
       flex-direction: column;
       gap: 4px;
@@ -304,7 +304,8 @@
   </div>
 
   <div id="control-subbar">
-    <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
+    <!-- 表示のみ左右を入れ替え（初期: 内部 1 ➔ 表示 ⬅） -->
+    <button class="dir-rev" id="btn-dir" title="タップで延線方向切替">⬅</button>
     <button class="mode-tab active" id="tab-manual">✋ 手動</button>
     <button class="mode-tab" id="tab-auto">🎯 自動</button>
   </div>
@@ -377,8 +378,8 @@
     var operationMode = 'MANUAL';
     var scaleFactor = 2.675;
 
-    // 方向自動判別（0: 未確定）
-    var moveDirection = 0;
+    // 内部処理極性（1 のとき前進加算）
+    var moveDirection = 1;
     var autoDirAccumPx = 0.0;
 
     var totalDist = 0.0;
@@ -447,10 +448,6 @@
     var curProf = new Float32Array(PW);
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
-
-    var downCanvas = document.createElement('canvas');
-    var downCtx = downCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
-    var MAX_DOWN_WIDTH = 640;
 
     var stage = document.getElementById('stage');
     var targetBox = document.getElementById('target-box');
@@ -586,16 +583,20 @@
       }
     });
 
+    // 手動トグル時
     btnDir.addEventListener('click', function() {
-      if (moveDirection === -1) setDirection(1, true);
-      else setDirection(-1, true);
+      if (moveDirection === 1) setDirection(-1, true);
+      else setDirection(1, true);
     });
 
+    // 【表示のみ左右入れ替え】
+    // 内部 moveDirection === 1  ➔ 表示は「⬅」
+    // 内部 moveDirection === -1 ➔ 表示は「➡」
     function setDirection(dir, isManual) {
       moveDirection = dir;
-      if (moveDirection === -1) {
+      if (moveDirection === 1) {
         btnDir.innerText = '⬅'; btnDir.className = 'dir-rev'; speak('左向きに設定しました', 1);
-      } else if (moveDirection === 1) {
+      } else if (moveDirection === -1) {
         btnDir.innerText = '➡'; btnDir.className = 'dir-fwd'; speak('右向きに設定しました', 1);
       } else {
         btnDir.innerText = '🔄'; btnDir.className = 'dir-auto';
@@ -693,6 +694,9 @@
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
 
+      // 内部値 1 をセット（表示は ⬅）
+      if (moveDirection === 0) setDirection(1, false);
+
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
       hasPrevProf = false; announcedMarks = {};
@@ -787,7 +791,6 @@
       announcedMarks = {}; speedSamples = [];
       lastShiftS = 0;
 
-      // 自動判定モードへリセット
       moveDirection = 0;
       autoDirAccumPx = 0.0;
       btnDir.innerText = '🔄';
@@ -1011,6 +1014,7 @@
     }
 
     function mainLoop(now) {
+      // 15fps制御
       if (now - lastProcessTime > 64) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
@@ -1173,23 +1177,23 @@
 
             var rawShiftPx = bestS * (swSrc / PW);
 
-            /* 【テスト用反転】初動ベクトルの自動判定しきい値を逆転 */
+            /* 【初動ベクトルの自動判定】 */
             if (moveDirection === 0) {
               if (Math.abs(rawShiftPx) > 0.5) {
                 autoDirAccumPx += rawShiftPx;
                 if (autoDirAccumPx > 25.0) {
-                  // 正の変位で ⬅（左向き・右から左への正加算）に確定
-                  setDirection(-1, false);
-                } else if (autoDirAccumPx < -25.0) {
-                  // 負の変位で ➡（右向き）に確定
+                  // 正の変位で内部 1（表示 ⬅）に確定
                   setDirection(1, false);
+                } else if (autoDirAccumPx < -25.0) {
+                  // 負の変位で内部 -1（表示 ➡）に確定
+                  setDirection(-1, false);
                 }
               }
             }
 
-            // 【極性計算】右から左への移動（bestS < 0）に対し、moveDirection = -1 のとき正加算
-            var activeDir = (moveDirection !== 0) ? moveDirection : -1;
-            var shiftPx = -rawShiftPx * activeDir;
+            // 内部処理はそのまま（moveDirection = 1 のとき前進加算）
+            var activeDir = (moveDirection !== 0) ? moveDirection : 1;
+            var shiftPx = rawShiftPx * activeDir;
 
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
@@ -1272,14 +1276,20 @@
           var blob = new Blob(recordedChunks, { type: 'video/mp4' });
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
-          a.style.display = 'none'; a.href = url; a.download = 'kameko_rec_' + Date.now() + '.mp4';
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'kameko_rec_' + Date.now() + '.mp4';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
           setTimeout(function() { URL.revokeObjectURL(url); recordedChunks = []; mediaRecorder = null; }, 1500);
         };
 
         mediaRecorder.start(1000);
-        bRecStart.style.display = 'none'; bRecStop.style.display = 'flex';
-        txtRecTimer.style.display = 'block'; recSec = 0;
+        bRecStart.style.display = 'none';
+        bRecStop.style.display = 'flex';
+        txtRecTimer.style.display = 'block';
+        recSec = 0;
         
         recTimerInterval = setInterval(function() {
           recSec++;
@@ -1294,7 +1304,9 @@
 
       function cleanupRecUI() {
         if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-        bRecStart.style.display = 'flex'; bRecStop.style.display = 'none'; txtRecTimer.style.display = 'none';
+        bRecStart.style.display = 'flex';
+        bRecStop.style.display = 'none';
+        txtRecTimer.style.display = 'none';
       }
     })();
 
