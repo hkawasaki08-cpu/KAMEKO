@@ -37,7 +37,6 @@
     #status-badge.cal1 { background: #d97706; }
     #status-badge.cal2 { background: #0284c7; }
 
-    /* ダッシュボードカード */
     #dash-container {
       background: #111827;
       padding: 6px 6px;
@@ -61,7 +60,6 @@
     .card-unit { font-size: 11px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* モード切替バー */
     #control-subbar {
       background: #18181b;
       padding: 3px 6px;
@@ -95,7 +93,6 @@
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 映像ステージ */
     #stage {
       position: relative;
       flex: 1;
@@ -112,7 +109,6 @@
       background: #000;
       transform-origin: center center;
     }
-    /* 縦長動画ファイル用：ケーブル部（最下部付近）を測定枠中央へ合わせる */
     video.video-mode-zoom {
       object-fit: cover !important;
       object-position: center 95% !important;
@@ -149,7 +145,6 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 録画コントロールバー */
     #rec-controls-bar {
       background: #18181b;
       padding: 4px 6px;
@@ -287,9 +282,9 @@
   </div>
 
   <div id="control-subbar">
-    <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
-    <button class="mode-tab" id="tab-manual">✋ 手動</button>
-    <button class="mode-tab active" id="tab-auto">🎯 自動</button>
+    <button class="dir-rev" id="btn-dir" title="タップで延線方向切替">⬅</button>
+    <button class="mode-tab active" id="tab-manual">✋ 手動</button>
+    <button class="mode-tab" id="tab-auto">🎯 自動</button>
   </div>
 
   <div id="stage">
@@ -336,7 +331,7 @@
   <footer>
     <div class="btn-row-top">
       <button id="b-pause" class="green col-left-main">測定開始 ▶</button>
-      <button id="b-manual-start" class="purple col-center-wide" style="display:none;">▶ 手動スタート</button>
+      <button id="b-manual-start" class="purple col-center-wide">▶ 手動スタート</button>
       <button id="b-mic" class="col-right-fixed" style="background:#2563eb;">🎤<br>音声</button>
     </div>
     <div class="btn-row-bottom">
@@ -348,10 +343,11 @@
   </footer>
 
   <script>
-    var operationMode = 'AUTO';
+    var operationMode = 'MANUAL';
     var scaleFactor = 2.675;
 
-    var moveDirection = 0;
+    // 初期値を「左向き（右から左へ流れる=1）」に設定
+    var moveDirection = -1;
     var autoDirAccumPx = 0.0;
 
     var totalDist = 0.0;
@@ -361,7 +357,6 @@
     var isManualTracking = false;
 
     var isFileVideoMode = false;
-
     var currentPlaybackRate = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
@@ -369,7 +364,6 @@
     var totalPxSinceStart = 0.0;
     var whiteFrameCount = 0;
 
-    /* ケーブル外径（太さ）追従補正 */
     var baseCableThickPx = 0.0;
     var curCableThickPx = 0.0;
     var thickHistory = [];
@@ -387,7 +381,6 @@
     var isCameraOpening = false;
     var cameraPermissionTimeout = null;
 
-    /* 画面自動ロック防止 */
     var wakeLock = null;
     async function requestWakeLock() {
       try {
@@ -454,8 +447,8 @@
     var txtSpdVal = document.getElementById('txt-spd-val');
 
     btnDir.addEventListener('click', function() {
-      if (moveDirection === 1) setDirection(-1, true);
-      else setDirection(1, true);
+      if (moveDirection === -1) setDirection(1, true);
+      else setDirection(-1, true);
     });
 
     function setDirection(dir, isManual) {
@@ -506,38 +499,6 @@
       }
     }
 
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    var recognition = null;
-    var isMicListening = false;
-
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP'; recognition.continuous = true; recognition.interimResults = false;
-      recognition.onresult = function(event) {
-        for (var i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            var cmd = event.results[i][0].transcript.trim().replace(/\s+/g, '');
-            if (cmd.includes('スタート') || cmd.includes('開始')) startManualMeasurement();
-            else if (cmd.includes('ストップ') || cmd.includes('停止')) { setPauseState(true); speak('ストップしました', 1); }
-            else if (cmd.includes('リセット')) { resetAll(); speak('リセットしました', 1); }
-          }
-        }
-      };
-      recognition.onend = function() { if (isMicListening) { try { recognition.start(); } catch(e){} } };
-    }
-
-    bMic.addEventListener('click', function() {
-      if (!SpeechRecognition) return alert('非対応ブラウザです');
-      isMicListening = !isMicListening;
-      if (isMicListening) {
-        try { recognition.start(); } catch(e){}
-        bMic.classList.add('mic-on'); bMic.innerHTML = '🎤<br>待受'; speak('音声操作を開始します', 1);
-      } else {
-        recognition.stop();
-        bMic.classList.remove('mic-on'); bMic.innerHTML = '🎤<br>音声'; speak('音声操作を終了しました', 1);
-      }
-    });
-
     var tabAuto = document.getElementById('tab-auto');
     var tabManual = document.getElementById('tab-manual');
 
@@ -557,11 +518,12 @@
 
     bManualStart.addEventListener('click', startManualMeasurement);
 
-    /* 【改修】手動計測開始時の確実な再生・追跡連動処理 */
     function startManualMeasurement() {
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
-      if (moveDirection === 0) setDirection(1, false);
+
+      // 現在の設定方向（⬅）をそのまま維持
+      if (moveDirection === 0) setDirection(-1, false);
 
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
@@ -573,7 +535,6 @@
       updateDistUI();
       statusBadge.className = 'active'; statusBadge.innerText = '手動測定中';
 
-      // 測定稼働状態・UI・動画再生を一括連動
       setPauseState(false);
       if (v.paused && !isReversing) {
         v.playbackRate = Math.max(0.25, currentPlaybackRate || 1.0);
@@ -658,8 +619,8 @@
       updateDistUI();
       txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
 
-      moveDirection = 0; autoDirAccumPx = 0.0;
-      btnDir.innerText = '🔄'; btnDir.className = 'dir-auto';
+      autoDirAccumPx = 0.0;
+      setDirection(-1, false);
 
       baseCableThickPx = 0.0; curCableThickPx = 0.0; thickHistory = [];
 
@@ -744,7 +705,6 @@
       });
     }
 
-    /* 動画ファイル読込（ケーブル位置への下部シフト・拡大） */
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -815,26 +775,22 @@
       for (var x = 0; x < PW; x++) { sumEdge += Math.abs(curProf[x]); }
       var avgEdge = sumEdge / PW;
 
-      if (avgLum < 30) {
+      if (avgLum < 20) {
         diagMsg.innerText = "❌ 光量不足（暗すぎます）"; diagMsg.style.color = "#ef4444";
-      } else if (avgLum > 230) {
+      } else if (avgLum > 240) {
         diagMsg.innerText = "❌ 光量過多（白飛び）"; diagMsg.style.color = "#ef4444";
-      } else if (glareCount > (PW * PH * 0.15)) {
-        diagMsg.innerText = "⚠️ 照り返し過多（反射）"; diagMsg.style.color = "#facc15";
-      } else if (avgEdge < 1.0) {
-        diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）"; diagMsg.style.color = "#facc15";
       } else {
-        diagMsg.innerText = "🟢 測定環境：良好"; diagMsg.style.color = "#4ade80";
+        diagMsg.innerText = "🟢 測定環境：良好 (高感度解析中)"; diagMsg.style.color = "#4ade80";
       }
 
       var thickInfo = (baseCableThickPx > 0) ? (" | 太さ比:" + (curCableThickPx / baseCableThickPx).toFixed(2)) : "";
-      diagSub.innerText = "W:" + whiteRatioPct.toFixed(0) + "% | Y:" + yellowRatioPct.toFixed(0) + "% | エッジ:" + avgEdge.toFixed(1) + thickInfo;
+      diagSub.innerText = "W:" + whiteRatioPct.toFixed(0) + "% | Y:" + yellowRatioPct.toFixed(0) + "% | 特徴強度:" + avgEdge.toFixed(1) + thickInfo;
 
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
       for (var dx = 0; dx < dw; dx++) {
         var srcX = Math.floor(dx * (PW / dw));
-        var val = Math.min(255, Math.floor(Math.abs(curProf[srcX]) * 18));
+        var val = Math.min(255, Math.floor(Math.abs(curProf[srcX]) * 2.5));
         for (var dy = 0; dy < dh; dy++) {
           var pIdx = (dy * dw + dx) * 4;
           dData[pIdx] = val; dData[pIdx+1] = val; dData[pIdx+2] = val; dData[pIdx+3] = 255;
@@ -902,7 +858,6 @@
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
-          /* 【改修】縦長動画の下部ケーブル位置を緑枠中央へ引き込む座標計算 */
           var sx, sy, swSrc, shSrc;
 
           if (isFileVideoMode && (vh > vw)) {
@@ -910,7 +865,6 @@
             var rw = vw * scale;
             var rh = vh * scale;
             var ox = 0;
-            // object-position: center 95% に合わせ、下部を大きく持ち上げて切り出す
             var oy = (sRect.height - rh) * 0.94;
 
             sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
@@ -938,7 +892,9 @@
           curCableThickPx = estimateCableThickness(imgData);
 
           var whiteCountTotal = 0, yellowCountTotal = 0, glareCount = 0, sumLumTotal = 0;
+          var minVal = 999, maxVal = -999;
 
+          // 縦帯ごとの平均輝度プロファイルの集計
           for (var x = 0; x < PW; x++) {
             var sumG = 0;
             for (var y = 0; y < PH; y++) {
@@ -949,16 +905,24 @@
 
               if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) whiteCountTotal++;
               if (lum > 235) glareCount++;
-
               if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) yellowCountTotal++;
             }
-            rawProf[x] = sumG / PH;
+            var colAvg = sumG / PH;
+            rawProf[x] = colAvg;
+            if (colAvg < minVal) minVal = colAvg;
+            if (colAvg > maxVal) maxVal = colAvg;
           }
 
-          for (var x = 0; x < PW; x++) {
-            if (x === 0) curProf[x] = rawProf[1] - rawProf[0];
-            else if (x === PW - 1) curProf[x] = rawProf[PW - 1] - rawProf[PW - 2];
-            else curProf[x] = (rawProf[x + 1] - rawProf[x - 1]) * 0.5;
+          // 【改修】Min-Max 自動ゲイン正規化（黒被覆の微小テクスチャを 0〜255 幅へ自動強調）
+          var range = maxVal - minVal;
+          if (range > 2.0) {
+            for (var x = 0; x < PW; x++) {
+              curProf[x] = ((rawProf[x] - minVal) / range) * 255.0;
+            }
+          } else {
+            for (var x = 0; x < PW; x++) {
+              curProf[x] = rawProf[x];
+            }
           }
 
           var totalPixels = PW * PH;
@@ -1032,47 +996,39 @@
 
             var rawShiftPx = bestS * (swSrc / PW) / downScale;
 
-            if (moveDirection === 0) {
-              if (Math.abs(rawShiftPx) > 0.5) {
-                autoDirAccumPx += rawShiftPx;
-                if (autoDirAccumPx > 25.0) setDirection(1, false);
-                else if (autoDirAccumPx < -25.0) setDirection(-1, false);
-              }
-            }
+            // 【改修】右から左への移動（rawShiftPx < 0）に対し、moveDirection = -1 を掛けて正方向加算
+            var activeDir = (moveDirection !== 0) ? moveDirection : -1;
+            var shiftPx = -rawShiftPx * activeDir;
 
-            var activeDir = (moveDirection !== 0) ? moveDirection : 1;
-            var shiftPx = rawShiftPx * activeDir;
-
-            /* 【安全ガード】太さ補正比率の適用（未確定時はそのまま通す） */
+            // 太さ比率補正（外れ値は 1.0 として安全バイパスし、処理を止めない）
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
-              if (thickRatio > 0.65 && thickRatio < 1.5) {
+              if (thickRatio >= 0.5 && thickRatio <= 2.0) {
                 shiftPx *= thickRatio;
               }
             }
 
-            if (moveDirection !== 0) {
-              if (shiftPx < -1.5) {
-                backwardStreak++;
-                if (backwardStreak >= 3) {
-                  errorBanner.innerText = '🔄 バック中...';
-                  errorBanner.style.display = 'block';
-                }
-              } else {
-                backwardStreak = 0;
-                errorBanner.style.display = 'none';
+            if (shiftPx < -2.0) {
+              backwardStreak++;
+              if (backwardStreak >= 3) {
+                errorBanner.innerText = '🔄 バック中...';
+                errorBanner.style.display = 'block';
               }
+            } else {
+              backwardStreak = 0;
+              errorBanner.style.display = 'none';
+            }
 
-              if (Math.abs(shiftPx) > 0.001) {
-                var deltaM = (shiftPx / scaleFactor) / 1000.0;
-                totalDist += deltaM;
-                totalPxSinceStart += shiftPx;
-                updateDistUI();
-                checkDistanceAnnouncements(totalDist);
+            // 0.001px 以上の有意な移動を毎フレーム確実に積算
+            if (Math.abs(shiftPx) > 0.001) {
+              var deltaM = (shiftPx / scaleFactor) / 1000.0;
+              totalDist += deltaM;
+              totalPxSinceStart += shiftPx;
+              updateDistUI();
+              checkDistanceAnnouncements(totalDist);
 
-                if (dtSec > 0 && dtSec < 0.25) {
-                  speedSamples.push((Math.abs(deltaM) / dtSec) * 60.0);
-                }
+              if (dtSec > 0 && dtSec < 0.25) {
+                speedSamples.push((Math.abs(deltaM) / dtSec) * 60.0);
               }
             }
 
@@ -1104,7 +1060,6 @@
       requestAnimationFrame(mainLoop);
     }
 
-    /* 録画処理 */
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
@@ -1164,7 +1119,6 @@
       }
     })();
 
-    /* アプリ起動時の自動初期化 */
     window.addEventListener('DOMContentLoaded', function() {
       openCamera();
     });
