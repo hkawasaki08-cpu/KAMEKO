@@ -353,7 +353,7 @@
       <div id="txt-spd-val" title="タップで等速(1.0x)/停止(0.0x)切替">+1.0x</div>
       <button class="spd-step-btn" id="b-spd-up">➕ +0.5</button>
     </div>
-    <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8; margin: 1px 0;">
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8; margin: 2px 0 1px 0;">
       <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
@@ -408,7 +408,6 @@
     var curCableThickPx = 0.0;
     var thickHistory = [];
 
-    // 【対策1】速度先読み追尾用の直前シフト保持
     var lastShiftS = 0;
 
     var testCalActive = false;
@@ -485,6 +484,56 @@
       videoZoomScale = parseFloat(this.value) / 100.0;
       applyVideoTransform();
     });
+
+    /* 【新機能】中央狭小縦スキャンによる自動Y位置検出 */
+    function autoDetectCableVerticalPosition() {
+      var vw = v.videoWidth;
+      var vh = v.videoHeight;
+      if (!vw || !vh || vw <= 0 || vh <= 0) return;
+
+      var scanH = Math.min(240, vh);
+      var scanW = 16; // 幅16pxのみをサンプリング（超低負荷）
+
+      var tempC = document.createElement('canvas');
+      tempC.width = scanW;
+      tempC.height = scanH;
+      var tempCtx = tempC.getContext('2d', { willReadFrequently: true });
+
+      var srcX = Math.floor((vw - scanW) * 0.5);
+      tempCtx.drawImage(v, srcX, 0, scanW, vh, 0, 0, scanW, scanH);
+      var d = tempCtx.getImageData(0, 0, scanW, scanH).data;
+
+      var rowLum = new Float32Array(scanH);
+      for (var y = 0; y < scanH; y++) {
+        var s = 0;
+        for (var x = 0; x < scanW; x++) {
+          var idx = (y * scanW + x) * 4;
+          s += (0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2]);
+        }
+        rowLum[y] = s / scanW;
+      }
+
+      // 最も暗い帯（黒シース）の深さ・中心Y座標を特定
+      var minLum = 999;
+      var bestScanY = Math.floor(scanH * 0.85);
+
+      for (var y = 10; y < scanH - 10; y++) {
+        var localLum = (rowLum[y-1] + rowLum[y] + rowLum[y+1]) / 3.0;
+        if (localLum < minLum) {
+          minLum = localLum;
+          bestScanY = y;
+        }
+      }
+
+      var detectedRatio = bestScanY / scanH;
+      videoAlignY = Math.max(0.1, Math.min(0.95, detectedRatio));
+      slVideoY.value = Math.round(videoAlignY * 100);
+      applyVideoTransform();
+      console.log("ケーブルY位置を自動センタリングしました:", (videoAlignY * 100).toFixed(1) + "%");
+
+      // 一時キャンバスの明示的破棄
+      tempC.width = 1; tempC.height = 1; tempC = null;
+    }
 
     var diagMsg = document.getElementById('diag-msg');
     var diagSub = document.getElementById('diag-sub');
@@ -850,7 +899,6 @@
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
       
       isFileVideoMode = true;
-      applyVideoTransform();
 
       if (v.src) { URL.revokeObjectURL(v.src); }
       v.src = URL.createObjectURL(file);
@@ -863,6 +911,11 @@
       setPauseState(true);
       resetAll();
       startLoop();
+
+      // 動画ロード完了時に自動でケーブル垂直位置を検出
+      v.onloadeddata = function() {
+        setTimeout(autoDetectCableVerticalPosition, 300);
+      };
     });
 
     vbPlay.addEventListener('click', function() {
@@ -1109,16 +1162,15 @@
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
           if (canTrack && hasPrevProf) {
-            /* 【対策1】速度先読み追尾（探索窓のスライド） */
-            var centerS = Math.round(lastShiftS * 0.7); // 直前シフトを中心予測値とする（リミッター付き）
+            var centerS = Math.round(lastShiftS * 0.7);
             centerS = Math.max(-30, Math.min(30, centerS));
 
-            var halfWin = 45; // 中心から前後45pxを探索（実質±75px相当）
+            var halfWin = 45;
             var minS = Math.max(-70, centerS - halfWin);
             var maxS = Math.min(70, centerS + halfWin);
 
             var bestS = centerS, minDiff = 99999999;
-            var margin = 72; // 安全なサンプリング余白
+            var margin = 72;
 
             for (var s = minS; s <= maxS; s++) {
               var diff = 0;
@@ -1128,11 +1180,9 @@
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
-            // 直前シフト量を更新（次回フレームで探索窓を追従させる）
             lastShiftS = bestS;
 
             var rawShiftPx = bestS * (swSrc / PW);
-
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
 
