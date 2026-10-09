@@ -384,7 +384,6 @@
     var operationMode = 'MANUAL';
     var scaleFactor = 2.675;
 
-    // 【交換対応】初期向きを 1 (➡) に設定
     var moveDirection = 1;
     var autoDirAccumPx = 0.0;
 
@@ -408,6 +407,9 @@
     var baseCableThickPx = 0.0;
     var curCableThickPx = 0.0;
     var thickHistory = [];
+
+    // 【対策1】速度先読み追尾用の直前シフト保持
+    var lastShiftS = 0;
 
     var testCalActive = false;
     var testCalStartPx = 0.0;
@@ -541,7 +543,6 @@
       }
     });
 
-    // 【交換対応】方向ボタン切替処理の極性反転
     btnDir.addEventListener('click', function() {
       if (moveDirection === 1) setDirection(-1, true);
       else setDirection(1, true);
@@ -559,6 +560,7 @@
       backwardStreak = 0;
       errorBanner.style.display = 'none';
       hasPrevProf = false;
+      lastShiftS = 0;
     }
 
     function speak(text, count) {
@@ -655,6 +657,7 @@
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
       hasPrevProf = false; announcedMarks = {}; backwardStreak = 0;
+      lastShiftS = 0;
 
       if (curCableThickPx > 4.0) baseCableThickPx = curCableThickPx;
       else baseCableThickPx = 0.0;
@@ -721,12 +724,14 @@
         bPause.className = 'green col-left-main'; bPause.innerText = '測定開始 ▶';
         vbPlay.innerText = '再生 ▶'; txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
         backwardStreak = 0; errorBanner.style.display = 'none';
+        lastShiftS = 0;
         if (!v.paused) v.pause();
       } else {
         requestWakeLock();
         if (!v.srcObject && !v.src) openCamera();
         bPause.className = 'orange col-left-main'; bPause.innerText = '一時停止 ⏸';
         vbPlay.innerText = '一時停止 ⏸'; hasPrevProf = false; backwardStreak = 0;
+        lastShiftS = 0;
         if (currentPlaybackRate < 0) {
           startReverse(currentPlaybackRate);
         } else if (v.paused && !isReversing) {
@@ -742,6 +747,7 @@
       isInsideYellow = false; isManualTracking = false;
       whiteFrameCount = 0; hasPrevProf = false;
       announcedMarks = {}; speedSamples = []; backwardStreak = 0;
+      lastShiftS = 0;
       errorBanner.style.display = 'none';
       updateDistUI();
       txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
@@ -1103,18 +1109,30 @@
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
           if (canTrack && hasPrevProf) {
-            var maxS = 40, bestS = 0, minDiff = 99999999;
-            for (var s = -maxS; s <= maxS; s++) {
+            /* 【対策1】速度先読み追尾（探索窓のスライド） */
+            var centerS = Math.round(lastShiftS * 0.7); // 直前シフトを中心予測値とする（リミッター付き）
+            centerS = Math.max(-30, Math.min(30, centerS));
+
+            var halfWin = 45; // 中心から前後45pxを探索（実質±75px相当）
+            var minS = Math.max(-70, centerS - halfWin);
+            var maxS = Math.min(70, centerS + halfWin);
+
+            var bestS = centerS, minDiff = 99999999;
+            var margin = 72; // 安全なサンプリング余白
+
+            for (var s = minS; s <= maxS; s++) {
               var diff = 0;
-              for (var i = maxS; i < PW - maxS; i++) {
+              for (var i = margin; i < PW - margin; i++) {
                 diff += Math.abs(prevProf[i] - curProf[i + s]);
               }
               if (diff < minDiff) { minDiff = diff; bestS = s; }
             }
 
+            // 直前シフト量を更新（次回フレームで探索窓を追従させる）
+            lastShiftS = bestS;
+
             var rawShiftPx = bestS * (swSrc / PW);
 
-            // 【交換対応】左右の極性判定を反転
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
 
@@ -1160,6 +1178,7 @@
             }
           } else {
             txtSpeed.innerText = "0.0";
+            lastShiftS = 0;
           }
 
           prevProf.set(curProf);
@@ -1170,6 +1189,7 @@
           backwardStreak = 0;
           errorBanner.style.display = 'none';
           hasPrevProf = false;
+          lastShiftS = 0;
         }
       }
 
