@@ -61,7 +61,7 @@
     .card-unit { font-size: 11px; color: #9ca3af; margin-left: 2px; }
     .card-sub { font-size: 9px; color: #38bdf8; font-weight: bold; margin-top: 3px; }
 
-    /* モード切替バー（高さ: 17px） */
+    /* モード切替バー */
     #control-subbar {
       background: #18181b;
       padding: 3px 6px;
@@ -95,7 +95,7 @@
     #btn-dir.dir-fwd { background: #0d9488; border: 1.5px solid #2dd4bf; color: #fff; }
     #btn-dir.dir-rev { background: #ea580c; border: 1.5px solid #fb923c; color: #fff; }
 
-    /* 映像ステージ（contain 表示に対応） */
+    /* 映像ステージ */
     #stage {
       position: relative;
       flex: 1;
@@ -108,8 +108,14 @@
     }
     video {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      object-fit: contain; /* 動画ファイルが見切れないよう全体収容 */
+      object-fit: cover;
       background: #000;
+      transform-origin: center center;
+    }
+    /* 動画ファイル読込時のズーム＆位置シフト用クラス */
+    video.video-mode-zoom {
+      object-fit: cover !important;
+      object-position: center 88% !important; /* 縦長動画の下部に映るケーブルを測定枠中央へ合わせる */
     }
     #target-box {
       position: absolute;
@@ -354,6 +360,8 @@
     var isPaused = true;
     var isManualTracking = false;
 
+    var isFileVideoMode = false; // 動画ファイル読み込みモード判定フラグ
+
     var currentPlaybackRate = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
@@ -361,7 +369,7 @@
     var totalPxSinceStart = 0.0;
     var whiteFrameCount = 0;
 
-    /* ケーブル外径（太さ）追従型補正 */
+    /* ケーブル外径（太さ）追従補正 */
     var baseCableThickPx = 0.0;
     var curCableThickPx = 0.0;
     var thickHistory = [];
@@ -689,6 +697,8 @@
     }
 
     function openCamera() {
+      isFileVideoMode = false;
+      v.classList.remove('video-mode-zoom');
       if (isCameraOpening) return;
       isCameraOpening = true;
       stopReverse();
@@ -727,13 +737,16 @@
       });
     }
 
-    /* 動画ファイル読込（アスペクト比対応・Infinity対策） */
+    /* 【改修】動画ファイル読込（自動拡大・測定枠フォーカス適用） */
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
       stopReverse();
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
       
+      isFileVideoMode = true;
+      v.classList.add('video-mode-zoom'); // ケーブル位置への自動拡大・シフトクラスを付与
+
       if (v.src) URL.revokeObjectURL(v.src);
       v.src = URL.createObjectURL(file);
       vBar.style.display = 'flex';
@@ -766,13 +779,12 @@
       v.currentTime = Math.min(maxT, v.currentTime + 0.1);
     });
 
-    /* 【改修】再生時間の Infinity 表示ガード */
     v.addEventListener('timeupdate', function() {
       var cur = v.currentTime ? v.currentTime.toFixed(1) : '0.0';
       if (isFinite(v.duration) && v.duration > 0) {
         vTime.innerText = cur + 's / ' + v.duration.toFixed(1) + 's';
       } else {
-        vTime.innerText = cur + 's'; // durationがInfinityの場合は現在秒数のみ表示
+        vTime.innerText = cur + 's';
       }
     });
 
@@ -883,17 +895,35 @@
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
-          /* 【改修】object-fit: contain に準拠した実表示領域の幾何座標変換 */
-          var scale = Math.min(sRect.width / vw, sRect.height / vh);
-          var rw = vw * scale;
-          var rh = vh * scale;
-          var ox = (sRect.width - rw) / 2;
-          var oy = (sRect.height - rh) / 2;
+          /* 【改修】拡大表示と測定枠座標の完全同期 */
+          var sx, sy, swSrc, shSrc;
 
-          var sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
-          var sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
-          var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
-          var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
+          if (isFileVideoMode && (vh > vw)) {
+            // 縦長動画の場合：横幅いっぱいに拡大し、動画下部（ケーブル領域）を切り出す
+            var scale = sRect.width / vw;
+            var rw = vw * scale;
+            var rh = vh * scale;
+            var ox = 0;
+            // object-position: center 88% に合わせた縦オフセット計算
+            var oy = (sRect.height - rh) * 0.88;
+
+            sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
+            sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
+            swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
+            shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
+          } else {
+            // 通常カメラまたは横長動画の場合
+            var scale = Math.max(sRect.width / vw, sRect.height / vh);
+            var rw = vw * scale;
+            var rh = vh * scale;
+            var ox = (sRect.width - rw) / 2;
+            var oy = (sRect.height - rh) / 2;
+
+            sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
+            sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
+            swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
+            shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
+          }
 
           if (swSrc > 0 && shSrc > 0) {
             ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
