@@ -835,7 +835,6 @@
       });
     }
 
-    /* 動画ファイル読込（メモリ即時解放） */
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -898,8 +897,9 @@
       requestAnimationFrame(mainLoop);
     }
 
+    /* 診断用Canvas描画（1000ms間隔で省メモリ化） */
     function runDiagnostics(avgLum, glareCount, whiteRatioPct, yellowRatioPct, now) {
-      if (now - lastDiagTime < 400) return;
+      if (now - lastDiagTime < 1000) return;
       lastDiagTime = now;
 
       var sumEdge = 0;
@@ -962,8 +962,8 @@
     }
 
     function mainLoop(now) {
-      // メモリ・負荷軽減のため約50ms周期（20fps）で安定処理
-      if (now - lastProcessTime > 48) {
+      // 約66ms（15fps）間隔で安定動作・メモリ蓄積を完全に防止
+      if (now - lastProcessTime > 64) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
 
@@ -978,7 +978,6 @@
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
-          /* 【クラッシュ防止】中間キャンバスを完全に廃止し、動画から直接200x32pxへ転送 */
           var sx, sy, swSrc, shSrc;
 
           if (isFileVideoMode) {
