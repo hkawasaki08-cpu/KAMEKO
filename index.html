@@ -311,6 +311,7 @@
   </div>
 
   <div id="control-subbar">
+    <!-- 初期表示：左向き（⬅） -->
     <button class="dir-rev" id="btn-dir" title="タップで延線方向切替">⬅</button>
     <button class="mode-tab active" id="tab-manual">✋ 手動</button>
     <button class="mode-tab" id="tab-auto">🎯 自動</button>
@@ -385,7 +386,7 @@
     var operationMode = 'MANUAL';
     var scaleFactor = 2.675;
 
-    // 【重要】右から左へ流れる動きを前進（+）とするため初期値を -1 に設定
+    // 【修正】初期向きを「-1（⬅ 左向き＝右から左へ流れて正加算）」に設定
     var moveDirection = -1;
     var autoDirAccumPx = 0.0;
 
@@ -410,6 +411,7 @@
     var curCableThickPx = 0.0;
     var thickHistory = [];
 
+    // 速度先読み追尾用
     var lastShiftS = 0;
 
     var testCalActive = false;
@@ -592,6 +594,7 @@
       }
     });
 
+    // 【修正】ボタンタップ時の反転トグル
     btnDir.addEventListener('click', function() {
       if (moveDirection === -1) setDirection(1, true);
       else setDirection(-1, true);
@@ -701,6 +704,7 @@
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
 
+      // 初期値 -1（⬅）をそのまま維持
       if (moveDirection === 0) setDirection(-1, false);
 
       totalDist = 0.0; totalPxSinceStart = 0.0;
@@ -802,6 +806,7 @@
       txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
 
       autoDirAccumPx = 0.0;
+      // 【修正】初期向きを ⬅ にリセット
       setDirection(-1, false);
 
       baseCableThickPx = 0.0; curCableThickPx = 0.0; thickHistory = [];
@@ -1183,9 +1188,12 @@
             lastShiftS = bestS;
 
             var rawShiftPx = bestS * (swSrc / PW);
-            // 【極性修正】右から左への移動（bestS < 0）に対し、moveDirection = -1 を掛けて正方向加算
+
+            // 【極性修正】
+            // ケーブルが「右から左」に動くと画像は左シフト（bestS < 0）
+            // ボタンが「⬅（moveDirection = -1）」のとき、正方向加算とするため符号を反転
             var activeDir = (moveDirection !== 0) ? moveDirection : -1;
-            var shiftPx = -rawShiftPx * activeDir;
+            var shiftPx = (rawShiftPx * activeDir);
 
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
