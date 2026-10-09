@@ -141,6 +141,7 @@
       border-radius: 2px; background: #000; display: block;
     }
 
+    /* 録画コントロールバー（リロードボタン追加） */
     #rec-controls-bar {
       background: #18181b;
       padding: 4px 6px;
@@ -150,6 +151,12 @@
       justify-content: flex-end;
       border-bottom: 1px solid #27272a;
       flex-shrink: 0;
+    }
+    #b-reload {
+      background: #334155; color: #fff; border: 1.5px solid #475569;
+      padding: 0 10px; border-radius: 6px; font-size: 12px; font-weight: bold;
+      cursor: pointer; height: 34px; min-height: 34px;
+      display: flex; align-items: center; justify-content: center;
     }
     .rec-btn {
       flex: 0 0 28%;
@@ -162,7 +169,7 @@
     #rec-timer {
       font-size: 11px; font-weight: bold; color: #ef4444;
       background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px;
-      display: none; white-space: nowrap;
+      display: none; white-space: nowrap; margin-right: auto;
     }
 
     #v-bar {
@@ -335,8 +342,10 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
+  <!-- 録画バー：リロードボタンを追加 -->
   <div id="rec-controls-bar">
-    <span id="rec-timer">● REC 00s / 60s</span>
+    <span id="rec-timer">● REC 00:00</span>
+    <button id="b-reload" title="ページを再読み込み">🔄 リロード</button>
     <button id="b-rec-start" class="rec-btn">🔴 録画</button>
     <button id="b-rec-stop" class="rec-btn" style="display:none; background:#dc2626;">⏹ 停止</button>
   </div>
@@ -425,6 +434,13 @@
     document.addEventListener('visibilitychange', async function() {
       if (document.visibilityState === 'visible' && (!isPaused || isRunning)) {
         await requestWakeLock();
+      }
+    });
+
+    // リロードボタンの動作
+    document.getElementById('b-reload').addEventListener('click', function() {
+      if (confirm('画面を再読み込みしますか？')) {
+        location.reload();
       }
     });
 
@@ -608,21 +624,33 @@
 
     bManualStart.addEventListener('click', startManualMeasurement);
 
+    /* 【改修】手動計測の確実な起動処理 */
     function startManualMeasurement() {
       requestWakeLock();
       if (!v.srcObject && !v.src) {
         openCamera();
       }
-      totalDist = 0.0; totalPxSinceStart = 0.0;
+      
+      // 方向が未確定（0）ならデフォルトで右向き（1）を即時設定
+      if (moveDirection === 0) {
+        setDirection(1, false);
+      }
+
+      totalDist = 0.0; 
+      totalPxSinceStart = 0.0;
       isManualTracking = true;
       setPauseState(false);
       hasPrevProf = false;
       announcedMarks = {};
       backwardStreak = 0;
       updateDistUI();
+
       statusBadge.className = 'active';
       statusBadge.innerText = '手動測定中';
-      if (v.paused) v.play().catch(function(){});
+      
+      if (v.paused && !isReversing) {
+        v.play().catch(function(){});
+      }
       speak('測定を開始します。', 2);
     }
 
@@ -1147,12 +1175,12 @@
       requestAnimationFrame(mainLoop);
     }
 
+    /* 【改修】録画処理（時間制限廃止・無制限録画） */
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
       var recTimerInterval = null;
-      var autoStopTimeout = null;
-      var recSec = 0, MAX_REC_SEC = 60;
+      var recSec = 0;
 
       var bRecStart = document.getElementById('b-rec-start');
       var bRecStop = document.getElementById('b-rec-stop');
@@ -1195,14 +1223,14 @@
         bRecStop.style.display = 'flex';
         txtRecTimer.style.display = 'block';
         recSec = 0;
+        
+        // 時間無制限：分:秒（MM:SS）表示
         recTimerInterval = setInterval(function() {
           recSec++;
-          txtRecTimer.innerText = '● REC ' + (recSec < 10 ? '0' : '') + recSec + 's / 60s';
+          var m = Math.floor(recSec / 60);
+          var s = recSec % 60;
+          txtRecTimer.innerText = '● REC ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         }, 1000);
-
-        autoStopTimeout = setTimeout(function() {
-          if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-        }, MAX_REC_SEC * 1000);
       });
 
       bRecStop.addEventListener('click', function() {
@@ -1211,7 +1239,6 @@
 
       function cleanupRecUI() {
         if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-        if (autoStopTimeout) { clearTimeout(autoStopTimeout); autoStopTimeout = null; }
         bRecStart.style.display = 'flex';
         bRecStop.style.display = 'none';
         txtRecTimer.style.display = 'none';
