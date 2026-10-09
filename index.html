@@ -112,10 +112,10 @@
       background: #000;
       transform-origin: center center;
     }
-    /* 動画ファイル読込時のズーム＆位置シフト用クラス */
+    /* 縦長動画ファイル用：ケーブル部（最下部付近）を測定枠中央へ合わせる */
     video.video-mode-zoom {
       object-fit: cover !important;
-      object-position: center 88% !important; /* 縦長動画の下部に映るケーブルを測定枠中央へ合わせる */
+      object-position: center 95% !important;
     }
     #target-box {
       position: absolute;
@@ -360,7 +360,7 @@
     var isPaused = true;
     var isManualTracking = false;
 
-    var isFileVideoMode = false; // 動画ファイル読み込みモード判定フラグ
+    var isFileVideoMode = false;
 
     var currentPlaybackRate = 1.0;
 
@@ -557,13 +557,14 @@
 
     bManualStart.addEventListener('click', startManualMeasurement);
 
+    /* 【改修】手動計測開始時の確実な再生・追跡連動処理 */
     function startManualMeasurement() {
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
       if (moveDirection === 0) setDirection(1, false);
 
       totalDist = 0.0; totalPxSinceStart = 0.0;
-      isManualTracking = true; setPauseState(false);
+      isManualTracking = true;
       hasPrevProf = false; announcedMarks = {}; backwardStreak = 0;
 
       if (curCableThickPx > 4.0) baseCableThickPx = curCableThickPx;
@@ -571,7 +572,13 @@
 
       updateDistUI();
       statusBadge.className = 'active'; statusBadge.innerText = '手動測定中';
-      if (v.paused && !isReversing) v.play().catch(function(){});
+
+      // 測定稼働状態・UI・動画再生を一括連動
+      setPauseState(false);
+      if (v.paused && !isReversing) {
+        v.playbackRate = Math.max(0.25, currentPlaybackRate || 1.0);
+        v.play().catch(function(e){ console.warn("play error:", e); });
+      }
       speak('測定を開始します。', 2);
     }
 
@@ -737,7 +744,7 @@
       });
     }
 
-    /* 【改修】動画ファイル読込（自動拡大・測定枠フォーカス適用） */
+    /* 動画ファイル読込（ケーブル位置への下部シフト・拡大） */
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -745,7 +752,7 @@
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
       
       isFileVideoMode = true;
-      v.classList.add('video-mode-zoom'); // ケーブル位置への自動拡大・シフトクラスを付与
+      v.classList.add('video-mode-zoom');
 
       if (v.src) URL.revokeObjectURL(v.src);
       v.src = URL.createObjectURL(file);
@@ -814,7 +821,7 @@
         diagMsg.innerText = "❌ 光量過多（白飛び）"; diagMsg.style.color = "#ef4444";
       } else if (glareCount > (PW * PH * 0.15)) {
         diagMsg.innerText = "⚠️ 照り返し過多（反射）"; diagMsg.style.color = "#facc15";
-      } else if (avgEdge < 1.4) {
+      } else if (avgEdge < 1.0) {
         diagMsg.innerText = "⚠️ コントラスト不足（特徴薄）"; diagMsg.style.color = "#facc15";
       } else {
         diagMsg.innerText = "🟢 測定環境：良好"; diagMsg.style.color = "#4ade80";
@@ -895,24 +902,22 @@
           var sRect = stage.getBoundingClientRect();
           var bRect = targetBox.getBoundingClientRect();
 
-          /* 【改修】拡大表示と測定枠座標の完全同期 */
+          /* 【改修】縦長動画の下部ケーブル位置を緑枠中央へ引き込む座標計算 */
           var sx, sy, swSrc, shSrc;
 
           if (isFileVideoMode && (vh > vw)) {
-            // 縦長動画の場合：横幅いっぱいに拡大し、動画下部（ケーブル領域）を切り出す
             var scale = sRect.width / vw;
             var rw = vw * scale;
             var rh = vh * scale;
             var ox = 0;
-            // object-position: center 88% に合わせた縦オフセット計算
-            var oy = (sRect.height - rh) * 0.88;
+            // object-position: center 95% に合わせ、下部を大きく持ち上げて切り出す
+            var oy = (sRect.height - rh) * 0.94;
 
             sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
             sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
             swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
             shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
           } else {
-            // 通常カメラまたは横長動画の場合
             var scale = Math.max(sRect.width / vw, sRect.height / vh);
             var rw = vw * scale;
             var rh = vh * scale;
@@ -1038,6 +1043,7 @@
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
 
+            /* 【安全ガード】太さ補正比率の適用（未確定時はそのまま通す） */
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
               if (thickRatio > 0.65 && thickRatio < 1.5) {
