@@ -311,7 +311,7 @@
   </div>
 
   <div id="control-subbar">
-    <button class="dir-fwd" id="btn-dir" title="タップで延線方向切替">➡</button>
+    <button class="dir-rev" id="btn-dir" title="タップで延線方向切替">⬅</button>
     <button class="mode-tab active" id="tab-manual">✋ 手動</button>
     <button class="mode-tab" id="tab-auto">🎯 自動</button>
   </div>
@@ -385,8 +385,8 @@
     var operationMode = 'MANUAL';
     var scaleFactor = 2.675;
 
-    // 進行方向極性（➡：正方向加算）
-    var moveDirection = 1;
+    // 【重要】右から左へ流れる動きを前進（+）とするため初期値を -1 に設定
+    var moveDirection = -1;
     var autoDirAccumPx = 0.0;
 
     var totalDist = 0.0;
@@ -410,7 +410,6 @@
     var curCableThickPx = 0.0;
     var thickHistory = [];
 
-    // 【対策1】速度先読み追尾用
     var lastShiftS = 0;
 
     var testCalActive = false;
@@ -474,7 +473,6 @@
         v.style.objectPosition = 'center ' + (videoAlignY * 100).toFixed(1) + '%';
         v.style.transform = 'scale(' + videoZoomScale.toFixed(2) + ')';
       } else {
-        // カメラ起動時：全幅充填（黒帯なし）
         v.style.objectFit = 'cover';
         v.style.objectPosition = 'center center';
         v.style.transform = 'none';
@@ -491,7 +489,6 @@
       applyVideoTransform();
     });
 
-    // 動画ロード時の中央狭小縦スキャンによる自動Y位置検出（Safari完全安定化準拠）
     function autoDetectCableVerticalPosition() {
       var vw = v.videoWidth;
       var vh = v.videoHeight;
@@ -564,7 +561,6 @@
     var bSpdUp = document.getElementById('b-spd-up');
     var txtSpdVal = document.getElementById('txt-spd-val');
 
-    // 試作用 2m校正/検証ボタン処理
     bTestCal.addEventListener('click', function() {
       if (!testCalActive) {
         testCalActive = true;
@@ -597,16 +593,16 @@
     });
 
     btnDir.addEventListener('click', function() {
-      if (moveDirection === 1) setDirection(-1, true);
-      else setDirection(1, true);
+      if (moveDirection === -1) setDirection(1, true);
+      else setDirection(-1, true);
     });
 
     function setDirection(dir, isManual) {
       moveDirection = dir;
-      if (moveDirection === 1) {
-        btnDir.innerText = '➡'; btnDir.className = 'dir-fwd'; speak('右向きに設定しました', 1);
-      } else if (moveDirection === -1) {
+      if (moveDirection === -1) {
         btnDir.innerText = '⬅'; btnDir.className = 'dir-rev'; speak('左向きに設定しました', 1);
+      } else if (moveDirection === 1) {
+        btnDir.innerText = '➡'; btnDir.className = 'dir-fwd'; speak('右向きに設定しました', 1);
       } else {
         btnDir.innerText = '🔄'; btnDir.className = 'dir-auto';
       }
@@ -705,7 +701,7 @@
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
 
-      if (moveDirection === 0) setDirection(1, false);
+      if (moveDirection === 0) setDirection(-1, false);
 
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
@@ -806,7 +802,7 @@
       txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
 
       autoDirAccumPx = 0.0;
-      setDirection(1, false);
+      setDirection(-1, false);
 
       baseCableThickPx = 0.0; curCableThickPx = 0.0; thickHistory = [];
 
@@ -1026,7 +1022,6 @@
     }
 
     function mainLoop(now) {
-      // 15fps制御（Safari完全安定化）
       if (now - lastProcessTime > 64) {
         var dtSec = (now - lastProcessTime) / 1000.0;
         lastProcessTime = now;
@@ -1167,7 +1162,6 @@
                          (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
 
           if (canTrack && hasPrevProf) {
-            // 【対策1】速度先読み追尾（探索窓のスライド）
             var centerS = Math.round(lastShiftS * 0.7);
             centerS = Math.max(-30, Math.min(30, centerS));
 
@@ -1189,8 +1183,9 @@
             lastShiftS = bestS;
 
             var rawShiftPx = bestS * (swSrc / PW);
-            var activeDir = (moveDirection !== 0) ? moveDirection : 1;
-            var shiftPx = rawShiftPx * activeDir;
+            // 【極性修正】右から左への移動（bestS < 0）に対し、moveDirection = -1 を掛けて正方向加算
+            var activeDir = (moveDirection !== 0) ? moveDirection : -1;
+            var shiftPx = -rawShiftPx * activeDir;
 
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
