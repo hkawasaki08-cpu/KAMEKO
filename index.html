@@ -174,7 +174,7 @@
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 4px 6px;
+      padding: 3px 6px;
       display: none;
       flex-direction: column;
       gap: 4px;
@@ -182,7 +182,6 @@
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
 
-    /* CVTサイズ選択 ＆ 位置スライダー行 */
     .align-slider-row {
       display: flex;
       gap: 6px;
@@ -344,7 +343,6 @@
   </div>
 
   <div id="v-bar">
-    <!-- CVTサイズ選択 ＆ 位置スライダー -->
     <div class="align-slider-row">
       <span>線種:</span>
       <select id="sel-cvt-size" title="6.6kV CVT仕上外径を選択">
@@ -402,9 +400,8 @@
   <script>
     var operationMode = 'MANUAL';
     
-    // 【新仕様】CVT仕上外径ベースの動的スケール管理
-    var nominalCableDiaMm = 89.0; // デフォルト: 400sq (89mm)
-    var scaleFactor = 2.675;     // 初期値
+    var nominalCableDiaMm = 89.0;
+    var scaleFactor = 2.675;
 
     var moveDirection = 1;
     var autoDirAccumPx = 0.0;
@@ -470,7 +467,6 @@
       if (confirm('画面を再読み込みしますか？')) location.reload();
     });
 
-    // CVTサイズプルダウン変更
     var selCvtSize = document.getElementById('sel-cvt-size');
     selCvtSize.addEventListener('change', function() {
       nominalCableDiaMm = parseFloat(this.value);
@@ -480,15 +476,13 @@
       speak(this.options[this.selectedIndex].text + 'に設定しました', 1);
     });
 
-    // 公称外径からのスケール自動算出
     function updateScaleFromNominalDiameter() {
       if (curCableThickPx > 6.0 && nominalCableDiaMm > 10.0) {
-        // 画像切り出し倍率(swSrc / PW)を考慮して実空間スケールを更新
         var sw = targetBox.offsetWidth || 200;
         var estScale = (curCableThickPx / nominalCableDiaMm) * (sw / PW);
         if (estScale > 0.8 && estScale < 6.0) {
           scaleFactor = estScale;
-          console.log("公称外径からscaleFactorを自動更新:", scaleFactor.toFixed(4), "px/mm");
+          console.log("公称外径からscaleFactorを更新:", scaleFactor.toFixed(4), "px/mm");
         }
       }
     }
@@ -531,13 +525,14 @@
       applyVideoTransform();
     });
 
+    /* 【新ロジック】太さ（暗い帯・エッジペア）を判定する汎用自動センタリング */
     function autoDetectCableVerticalPosition() {
       var vw = v.videoWidth;
       var vh = v.videoHeight;
       if (!vw || !vh || vw <= 0 || vh <= 0) return;
 
-      var scanH = Math.min(240, vh);
-      var scanW = 16;
+      var scanH = Math.min(320, vh);
+      var scanW = 24;
 
       var tempC = document.createElement('canvas');
       tempC.width = scanW;
@@ -549,30 +544,72 @@
       var d = tempCtx.getImageData(0, 0, scanW, scanH).data;
 
       var rowLum = new Float32Array(scanH);
+      var minL = 999, maxL = -999;
       for (var y = 0; y < scanH; y++) {
         var s = 0;
         for (var x = 0; x < scanW; x++) {
           var idx = (y * scanW + x) * 4;
           s += (0.299 * d[idx] + 0.587 * d[idx+1] + 0.114 * d[idx+2]);
         }
-        rowLum[y] = s / scanW;
+        var lum = s / scanW;
+        rowLum[y] = lum;
+        if (lum < minL) minL = lum;
+        if (lum > maxL) maxL = lum;
       }
 
-      var minLum = 999;
-      var bestScanY = Math.floor(scanH * 0.85);
+      // 背景と暗いケーブルを分ける動的しきい値
+      var lumRange = maxL - minL;
+      var darkThresh = minL + lumRange * 0.38;
 
-      for (var y = 10; y < scanH - 10; y++) {
-        var localLum = (rowLum[y-1] + rowLum[y] + rowLum[y+1]) / 3.0;
-        if (localLum < minLum) {
-          minLum = localLum;
-          bestScanY = y;
+      // 「太さ（連続する暗い帯）」の検出
+      var bestBandCenter = -1;
+      var maxBandLen = 0;
+      var curStart = -1;
+
+      for (var y = 0; y < scanH; y++) {
+        if (rowLum[y] <= darkThresh) {
+          if (curStart < 0) curStart = y;
+        } else {
+          if (curStart >= 0) {
+            var bandLen = y - curStart;
+            // 細い影（数px）を無視し、太い帯を最優先
+            if (bandLen >= 12 && bandLen > maxBandLen) {
+              maxBandLen = bandLen;
+              bestBandCenter = curStart + Math.floor(bandLen * 0.5);
+            }
+            curStart = -1;
+          }
+        }
+      }
+      if (curStart >= 0) {
+        var bandLen = scanH - curStart;
+        if (bandLen >= 12 && bandLen > maxBandLen) {
+          maxBandLen = bandLen;
+          bestBandCenter = curStart + Math.floor(bandLen * 0.5);
         }
       }
 
-      var detectedRatio = bestScanY / scanH;
-      videoAlignY = Math.max(0.1, Math.min(0.95, detectedRatio));
+      var finalCenterRatio = 0.90; // フォールバック
+      if (bestBandCenter > 0) {
+        finalCenterRatio = bestBandCenter / scanH;
+      } else {
+        // エッジペアによる補助判定
+        var maxGrad = -1, topY = 0;
+        var minGrad = 1, botY = scanH - 1;
+        for (var y = 2; y < scanH - 2; y++) {
+          var grad = rowLum[y+2] - rowLum[y-2];
+          if (grad > maxGrad) { maxGrad = grad; topY = y; }
+          if (grad < minGrad) { minGrad = grad; botY = y; }
+        }
+        if (Math.abs(botY - topY) >= 15) {
+          finalCenterRatio = ((topY + botY) * 0.5) / scanH;
+        }
+      }
+
+      videoAlignY = Math.max(0.05, Math.min(0.98, finalCenterRatio));
       slVideoY.value = Math.round(videoAlignY * 100);
       applyVideoTransform();
+      console.log("汎用アルゴリズムによる自動センタリング完了:", (videoAlignY * 100).toFixed(1) + "%");
 
       tempC.width = 1; tempC.height = 1; tempC = null;
     }
@@ -602,7 +639,6 @@
     var bSpdUp = document.getElementById('b-spd-up');
     var txtSpdVal = document.getElementById('txt-spd-val');
 
-    // 精密検定オプション（2m校正/検証）
     bTestCal.addEventListener('click', function() {
       if (!testCalActive) {
         testCalActive = true;
