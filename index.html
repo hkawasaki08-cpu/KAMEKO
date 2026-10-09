@@ -102,37 +102,25 @@
       background: #000;
       overflow: hidden;
       border-bottom: 1px solid #334155;
-      touch-action: none;
     }
     video {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       object-fit: cover;
       background: #000;
+      transform-origin: center center;
     }
-    /* ドラッグ可能な測定枠 */
     #target-box {
       position: absolute;
-      top: 15%; left: 3%; width: 94%; height: 70%;
+      top: 10%; left: 3%; width: 94%; height: 80%;
       border: 2px solid #22c55e; border-radius: 6px;
       box-shadow: inset 0 0 8px rgba(34, 197, 94, 0.4);
-      z-index: 20;
-      cursor: grab;
-      touch-action: none;
+      z-index: 10; pointer-events: none;
     }
-    #target-box:active { cursor: grabbing; border-color: #38bdf8; }
     #target-center-line {
       position: absolute;
       top: 0; left: 50%; width: 1px; height: 100%;
       border-left: 1px dashed rgba(255, 255, 255, 0.6);
       pointer-events: none;
-    }
-    #target-drag-hint {
-      position: absolute;
-      right: 6px; top: 2px;
-      font-size: 8px; color: #4ade80;
-      pointer-events: none;
-      font-weight: bold;
-      opacity: 0.8;
     }
     #error-banner {
       position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -192,13 +180,31 @@
     #v-bar {
       background: #0f172a;
       border-bottom: 1px solid #1e293b;
-      padding: 3px 6px;
+      padding: 4px 6px;
       display: none;
       flex-direction: column;
-      gap: 3px;
+      gap: 4px;
       flex-shrink: 0;
     }
     .v-row { display: flex; gap: 5px; align-items: center; }
+
+    .align-slider-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      background: #1e293b;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      color: #38bdf8;
+      font-weight: bold;
+    }
+    .align-slider-row input[type="range"] {
+      flex: 1;
+      height: 5px;
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
     
     .v-btn {
       flex: 1; background: #1e293b; color: #fff;
@@ -314,7 +320,6 @@
     <canvas id="c-proc" style="display:none;"></canvas>
     <div id="target-box">
       <div id="target-center-line"></div>
-      <div id="target-drag-hint">↕ ドラッグ調整</div>
     </div>
     <div id="error-banner">🔄 バック中...</div>
   </div>
@@ -335,13 +340,20 @@
   </div>
 
   <div id="v-bar">
+    <div class="align-slider-row">
+      <span>↕ 位置:</span>
+      <input type="range" id="sl-video-y" min="0" max="100" value="90">
+      <span>🔍 拡大:</span>
+      <input type="range" id="sl-video-zoom" min="100" max="350" value="100">
+    </div>
+
     <div class="v-row">
       <span style="font-size: 10px; color: #38bdf8; min-width: 28px; font-weight: bold;">速度:</span>
       <button class="spd-step-btn" id="b-spd-down">➖ -0.5</button>
       <div id="txt-spd-val" title="タップで等速(1.0x)/停止(0.0x)切替">+1.0x</div>
       <button class="spd-step-btn" id="b-spd-up">➕ +0.5</button>
     </div>
-    <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8; margin: 2px 0 1px 0;">
+    <div style="display:flex; justify-content:space-between; font-size:9px; color:#94a3b8; margin: 1px 0;">
       <span>🎬 コントローラー</span>
       <span id="v-time">0.0s</span>
     </div>
@@ -383,6 +395,9 @@
 
     var isFileVideoMode = false;
     var currentPlaybackRate = 1.0;
+
+    var videoAlignY = 0.90;
+    var videoZoomScale = 1.0;
 
     var autoState = 'WAIT_HEAD_INSIDE';
     var isInsideYellow = false;
@@ -449,6 +464,29 @@
     cProc.width = PW; cProc.height = PH;
     var ctxProc = cProc.getContext('2d', { willReadFrequently: true, alpha: false });
 
+    var slVideoY = document.getElementById('sl-video-y');
+    var slVideoZoom = document.getElementById('sl-video-zoom');
+
+    function applyVideoTransform() {
+      if (isFileVideoMode) {
+        v.style.objectPosition = 'center ' + (videoAlignY * 100).toFixed(1) + '%';
+        v.style.transform = 'scale(' + videoZoomScale.toFixed(2) + ')';
+      } else {
+        v.style.objectPosition = 'center center';
+        v.style.transform = 'none';
+      }
+    }
+
+    slVideoY.addEventListener('input', function() {
+      videoAlignY = parseFloat(this.value) / 100.0;
+      applyVideoTransform();
+    });
+
+    slVideoZoom.addEventListener('input', function() {
+      videoZoomScale = parseFloat(this.value) / 100.0;
+      applyVideoTransform();
+    });
+
     var diagMsg = document.getElementById('diag-msg');
     var diagSub = document.getElementById('diag-sub');
     var diagCanvas = document.getElementById('diag-canvas');
@@ -475,43 +513,6 @@
     var bSpdUp = document.getElementById('b-spd-up');
     var txtSpdVal = document.getElementById('txt-spd-val');
 
-    /* 【新機能】測定枠（target-box）の上下ドラッグ手動調整 */
-    (function initTargetBoxDrag() {
-      var isDragging = false;
-      var startY = 0;
-      var startTopPct = 15;
-
-      function onStart(e) {
-        isDragging = true;
-        var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        startY = clientY;
-        var sH = stage.getBoundingClientRect().height;
-        var bTop = targetBox.offsetTop;
-        startTopPct = (bTop / sH) * 100.0;
-      }
-
-      function onMove(e) {
-        if (!isDragging) return;
-        var clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        var dy = clientY - startY;
-        var sH = stage.getBoundingClientRect().height;
-        var newTopPct = startTopPct + (dy / sH) * 100.0;
-        newTopPct = Math.max(0, Math.min(80, newTopPct));
-        targetBox.style.top = newTopPct.toFixed(1) + '%';
-      }
-
-      function onEnd() { isDragging = false; }
-
-      targetBox.addEventListener('mousedown', onStart);
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onEnd);
-
-      targetBox.addEventListener('touchstart', onStart, { passive: true });
-      window.addEventListener('touchmove', onMove, { passive: false });
-      window.addEventListener('touchend', onEnd);
-    })();
-
-    /* 試作用 2m校正/検証ボタン処理 */
     bTestCal.addEventListener('click', function() {
       if (!testCalActive) {
         testCalActive = true;
@@ -798,7 +799,7 @@
 
     function openCamera() {
       isFileVideoMode = false;
-      targetBox.style.top = '15%';
+      applyVideoTransform();
       if (isCameraOpening) return;
       isCameraOpening = true;
       stopReverse();
@@ -837,47 +838,6 @@
       });
     }
 
-    /* 【新機能】動画ファイル読み込み時のケーブルY位置自動検出・自動フィット */
-    function autoAlignCableVertical(vw, vh) {
-      if (downCanvas.width !== vw || downCanvas.height !== vh) {
-        downCanvas.width = vw; downCanvas.height = vh;
-      }
-      downCtx.drawImage(v, 0, 0, vw, vh);
-
-      var sampleScanH = Math.min(vh, 320);
-      var scanCanvas = document.createElement('canvas');
-      scanCanvas.width = 160; scanCanvas.height = sampleScanH;
-      var sCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
-      sCtx.drawImage(downCanvas, 0, 0, vw, vh, 0, 0, 160, sampleScanH);
-      var sData = sCtx.getImageData(0, 0, 160, sampleScanH).data;
-
-      var rowLum = new Float32Array(sampleScanH);
-      for (var y = 0; y < sampleScanH; y++) {
-        var sum = 0;
-        for (var x = 20; x < 140; x++) {
-          var idx = (y * 160 + x) * 4;
-          sum += (0.299 * sData[idx] + 0.587 * sData[idx+1] + 0.114 * sData[idx+2]);
-        }
-        rowLum[y] = sum / 120;
-      }
-
-      var maxGrad = 0, bestY = -1;
-      for (var y = 5; y < sampleScanH - 5; y++) {
-        var grad = Math.abs(rowLum[y+3] - rowLum[y-3]);
-        if (grad > maxGrad) { maxGrad = grad; bestY = y; }
-      }
-
-      if (bestY > 0) {
-        var cableRatio = bestY / sampleScanH;
-        var sRect = stage.getBoundingClientRect();
-        var targetBoxH = targetBox.offsetHeight;
-        var newTopPx = (sRect.height * cableRatio) - (targetBoxH * 0.5);
-        newTopPx = Math.max(0, Math.min(sRect.height - targetBoxH, newTopPx));
-        targetBox.style.top = ((newTopPx / sRect.height) * 100.0).toFixed(1) + '%';
-        console.log("ケーブルY位置を自動検知しました:", (cableRatio * 100).toFixed(1) + "%");
-      }
-    }
-
     document.getElementById('f-video').addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (!file) return;
@@ -885,6 +845,7 @@
       if (v.srcObject) { v.srcObject.getTracks().forEach(function(t){ t.stop(); }); v.srcObject = null; }
       
       isFileVideoMode = true;
+      applyVideoTransform();
 
       if (v.src) URL.revokeObjectURL(v.src);
       v.src = URL.createObjectURL(file);
@@ -897,14 +858,6 @@
       setPauseState(true);
       resetAll();
       startLoop();
-
-      v.onloadedmetadata = function() {
-        setTimeout(function() {
-          if (v.videoWidth > 0 && v.videoHeight > 0) {
-            autoAlignCableVertical(v.videoWidth, v.videoHeight);
-          }
-        }, 200);
-      };
     });
 
     vbPlay.addEventListener('click', function() {
@@ -1031,273 +984,3 @@
           if (downCanvas.width !== vw || downCanvas.height !== vh) {
             downCanvas.width = vw;
             downCanvas.height = vh;
-          }
-
-          downCtx.drawImage(v, 0, 0, vw, vh);
-
-          var sRect = stage.getBoundingClientRect();
-          var bRect = targetBox.getBoundingClientRect();
-
-          /* 全機種共通：測定枠の現在位置から正確な矩形を切り出す幾何変換 */
-          var scale = Math.max(sRect.width / vw, sRect.height / vh);
-          var rw = vw * scale;
-          var rh = vh * scale;
-          var ox = (sRect.width - rw) / 2;
-          var oy = (sRect.height - rh) / 2;
-
-          var sx = Math.max(0, Math.floor((bRect.left - sRect.left - ox) / scale));
-          var sy = Math.max(0, Math.floor((bRect.top - sRect.top - oy) / scale));
-          var swSrc = Math.min(vw - sx, Math.floor(bRect.width / scale));
-          var shSrc = Math.min(vh - sy, Math.floor(bRect.height / scale));
-
-          if (swSrc > 0 && shSrc > 0) {
-            ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
-          }
-          var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
-
-          curCableThickPx = estimateCableThickness(imgData);
-
-          var whiteCountTotal = 0, yellowCountTotal = 0, glareCount = 0, sumLumTotal = 0;
-          var minVal = 999, maxVal = -999;
-
-          for (var x = 0; x < PW; x++) {
-            var sumG = 0;
-            for (var y = 0; y < PH; y++) {
-              var idx = (y * PW + x) * 4;
-              var r = imgData[idx], g = imgData[idx+1], b = imgData[idx+2];
-              var lum = 0.299 * r + 0.587 * g + 0.114 * b;
-              sumG += lum; sumLumTotal += lum;
-
-              if (lum > 105 && Math.abs(r - g) < 45 && Math.abs(r - b) < 55) whiteCountTotal++;
-              if (lum > 235) glareCount++;
-              if (r > 105 && g > 95 && b < 125 && (r + g - 2 * b) > 45) yellowCountTotal++;
-            }
-            var colAvg = sumG / PH;
-            rawProf[x] = colAvg;
-            if (colAvg < minVal) minVal = colAvg;
-            if (colAvg > maxVal) maxVal = colAvg;
-          }
-
-          var range = maxVal - minVal;
-          if (range > 2.0) {
-            for (var x = 0; x < PW; x++) {
-              curProf[x] = ((rawProf[x] - minVal) / range) * 255.0;
-            }
-          } else {
-            for (var x = 0; x < PW; x++) {
-              curProf[x] = rawProf[x];
-            }
-          }
-
-          var totalPixels = PW * PH;
-          var whiteRatio = whiteCountTotal / totalPixels;
-          var yellowRatio = yellowCountTotal / totalPixels;
-          runDiagnostics(sumLumTotal / totalPixels, glareCount, whiteRatio * 100.0, yellowRatio * 100.0, now);
-
-          if (operationMode === 'AUTO') {
-            var isWhitePresent = whiteRatio > 0.08;
-            var isYellowPresent = yellowRatio > 0.05;
-
-            if (autoState === 'WAIT_HEAD_INSIDE') {
-              if (isWhitePresent) {
-                whiteFrameCount++;
-                if (whiteFrameCount >= 2) {
-                  autoState = 'WAIT_HEAD_TRAILING';
-                  statusBadge.innerText = 'ヘッド通過中...';
-                }
-              } else { whiteFrameCount = 0; }
-            } else if (autoState === 'WAIT_HEAD_TRAILING') {
-              if (whiteRatio < 0.04) {
-                autoState = 'TRACKING_WAIT_YEL1';
-                totalDist = 0.0; totalPxSinceStart = 0.0;
-                baseCableThickPx = curCableThickPx;
-                statusBadge.className = 'active';
-                statusBadge.innerText = '測定中 (1m黄待ち)';
-                updateDistUI();
-                speak('ヘッド通過、測定を開始します。', 2);
-              }
-            } else if (autoState === 'TRACKING_WAIT_YEL1') {
-              if (isYellowPresent) {
-                isInsideYellow = true;
-              } else if (isInsideYellow && yellowRatio < 0.03 && totalPxSinceStart > 450) {
-                isInsideYellow = false;
-                autoState = 'TRACKING_WAIT_YEL2';
-                scaleFactor = totalPxSinceStart / 1000.0;
-                baseCableThickPx = curCableThickPx;
-                totalDist = 1.0;
-                statusBadge.className = 'cal1';
-                statusBadge.innerText = '1次校正済 (1.00m / 2m黄待ち)';
-                speak('1メートル通過、1次校正完了', 1);
-              }
-            } else if (autoState === 'TRACKING_WAIT_YEL2') {
-              if (isYellowPresent) {
-                isInsideYellow = true;
-              } else if (isInsideYellow && yellowRatio < 0.03 && totalPxSinceStart > (scaleFactor * 1500)) {
-                isInsideYellow = false;
-                autoState = 'TRACKING_FINAL';
-                scaleFactor = totalPxSinceStart / 2000.0;
-                baseCableThickPx = curCableThickPx;
-                totalDist = 2.0;
-                statusBadge.className = 'cal2';
-                statusBadge.innerText = '本校正完了 (2.00m / 最高精度)';
-                speak('2メートル通過、本校正完了しました', 1);
-              }
-            }
-          }
-
-          var canTrack = (operationMode === 'MANUAL' && isManualTracking) ||
-                         (operationMode === 'AUTO' && autoState !== 'WAIT_HEAD_INSIDE' && autoState !== 'WAIT_HEAD_TRAILING');
-
-          if (canTrack && hasPrevProf) {
-            var maxS = 40, bestS = 0, minDiff = 99999999;
-            for (var s = -maxS; s <= maxS; s++) {
-              var diff = 0;
-              for (var i = maxS; i < PW - maxS; i++) {
-                diff += Math.abs(prevProf[i] - curProf[i + s]);
-              }
-              if (diff < minDiff) { minDiff = diff; bestS = s; }
-            }
-
-            var rawShiftPx = bestS * (swSrc / PW) / downScale;
-
-            var activeDir = (moveDirection !== 0) ? moveDirection : -1;
-            var shiftPx = -rawShiftPx * activeDir;
-
-            if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
-              var thickRatio = baseCableThickPx / curCableThickPx;
-              if (thickRatio >= 0.5 && thickRatio <= 2.0) {
-                shiftPx *= thickRatio;
-              }
-            }
-
-            if (shiftPx < -2.0) {
-              backwardStreak++;
-              if (backwardStreak >= 3) {
-                errorBanner.innerText = '🔄 バック中...';
-                errorBanner.style.display = 'block';
-              }
-            } else {
-              backwardStreak = 0;
-              errorBanner.style.display = 'none';
-            }
-
-            if (Math.abs(shiftPx) > 0.001) {
-              var deltaM = (shiftPx / scaleFactor) / 1000.0;
-              totalDist += deltaM;
-              totalPxSinceStart += shiftPx;
-              updateDistUI();
-              checkDistanceAnnouncements(totalDist);
-
-              if (dtSec > 0 && dtSec < 0.25) {
-                speedSamples.push((Math.abs(deltaM) / dtSec) * 60.0);
-              }
-            }
-
-            if (now - lastSpeedTime > 500) {
-              if (speedSamples.length > 0) {
-                var avg = speedSamples.reduce(function(a, b){ return a + b; }, 0) / speedSamples.length;
-                currentSpeed = currentSpeed * 0.3 + avg * 0.7;
-                speedSamples = [];
-              } else { currentSpeed = 0.0; }
-              txtSpeed.innerText = Math.max(0, currentSpeed).toFixed(1);
-              updateDistUI();
-              lastSpeedTime = now;
-            }
-          } else {
-            txtSpeed.innerText = "0.0";
-          }
-
-          prevProf.set(curProf);
-          hasPrevProf = true;
-        } else if (v.paused && !isReversing) {
-          txtSpeed.innerText = "0.0";
-          txtEta.innerText = "予想: --分--秒";
-          backwardStreak = 0;
-          errorBanner.style.display = 'none';
-          hasPrevProf = false;
-        }
-      }
-
-      requestAnimationFrame(mainLoop);
-    }
-
-    (function() {
-      var mediaRecorder = null;
-      var recordedChunks = [];
-      var recTimerInterval = null;
-      var recSec = 0;
-
-      var bRecStart = document.getElementById('b-rec-start');
-      var bRecStop = document.getElementById('b-rec-stop');
-      var txtRecTimer = document.getElementById('rec-timer');
-
-      function getSupportedMimeType() {
-        var types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
-        for (var i = 0; i < types.length; i++) {
-          if (MediaRecorder.isTypeSupported(types[i])) return types[i];
-        }
-        return '';
-      }
-
-      bRecStart.addEventListener('click', function() {
-        if (!v.srcObject) return alert('カメラが起動していません');
-        if (typeof MediaRecorder === 'undefined') return alert('録画非対応です');
-
-        try {
-          recordedChunks = [];
-          mediaRecorder = new MediaRecorder(v.srcObject, { mimeType: getSupportedMimeType() });
-        } catch(e) { return alert('録画初期化エラー: ' + e.message); }
-
-        mediaRecorder.ondataavailable = function(e) { if (e.data && e.data.size > 0) recordedChunks.push(e.data); };
-        mediaRecorder.onstop = function() {
-          cleanupRecUI();
-          var blob = new Blob(recordedChunks, { type: 'video/mp4' });
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = 'kameko_rec_' + Date.now() + '.mp4';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(function() { URL.revokeObjectURL(url); recordedChunks = []; mediaRecorder = null; }, 1500);
-        };
-
-        mediaRecorder.start(1000);
-        bRecStart.style.display = 'none';
-        bRecStop.style.display = 'flex';
-        txtRecTimer.style.display = 'block';
-        recSec = 0;
-        
-        recTimerInterval = setInterval(function() {
-          recSec++;
-          var m = Math.floor(recSec / 60); var s = recSec % 60;
-          txtRecTimer.innerText = '● REC ' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-        }, 1000);
-      });
-
-      bRecStop.addEventListener('click', function() {
-        if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
-      });
-
-      function cleanupRecUI() {
-        if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-        bRecStart.style.display = 'flex';
-        bRecStop.style.display = 'none';
-        txtRecTimer.style.display = 'none';
-      }
-    })();
-
-    window.addEventListener('DOMContentLoaded', function() {
-      openCamera();
-    });
-
-    window.addEventListener('touchstart', function() {
-      requestWakeLock();
-      if (!v.srcObject && !v.src && !isCameraOpening) {
-        openCamera();
-      }
-    }, { once: true, passive: true });
-  </script>
-</body>
-</html>
