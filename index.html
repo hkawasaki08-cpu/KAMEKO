@@ -123,13 +123,6 @@
       border-left: 1px dashed rgba(255, 255, 255, 0.6);
       pointer-events: none;
     }
-    #error-banner {
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      background: rgba(37, 99, 235, 0.95); border: 2px solid #93c5fd;
-      color: #fff; padding: 4px 12px; border-radius: 20px;
-      font-size: 11px; font-weight: bold; z-index: 35;
-      display: none; white-space: nowrap;
-    }
 
     #diag-panel {
       background: #0b1329;
@@ -311,8 +304,7 @@
   </div>
 
   <div id="control-subbar">
-    <!-- 初期表示：左向き（⬅） -->
-    <button class="dir-rev" id="btn-dir" title="タップで延線方向切替">⬅</button>
+    <button class="dir-auto" id="btn-dir" title="タップで延線方向切替">🔄</button>
     <button class="mode-tab active" id="tab-manual">✋ 手動</button>
     <button class="mode-tab" id="tab-auto">🎯 自動</button>
   </div>
@@ -323,7 +315,6 @@
     <div id="target-box">
       <div id="target-center-line"></div>
     </div>
-    <div id="error-banner">🔄 バック中...</div>
   </div>
 
   <div id="diag-panel">
@@ -386,8 +377,8 @@
     var operationMode = 'MANUAL';
     var scaleFactor = 2.675;
 
-    // 【修正】初期向きを「-1（⬅ 左向き＝右から左へ流れて正加算）」に設定
-    var moveDirection = -1;
+    // 方向自動判別（0: 未確定）
+    var moveDirection = 0;
     var autoDirAccumPx = 0.0;
 
     var totalDist = 0.0;
@@ -411,7 +402,6 @@
     var curCableThickPx = 0.0;
     var thickHistory = [];
 
-    // 速度先読み追尾用
     var lastShiftS = 0;
 
     var testCalActive = false;
@@ -426,7 +416,6 @@
     var lastDiagTime = 0;
     var reverseInterval = null;
     var isReversing = false;
-    var backwardStreak = 0;
 
     var isCameraOpening = false;
     var cameraPermissionTimeout = null;
@@ -458,6 +447,10 @@
     var curProf = new Float32Array(PW);
     var prevProf = new Float32Array(PW);
     var hasPrevProf = false;
+
+    var downCanvas = document.createElement('canvas');
+    var downCtx = downCanvas.getContext('2d', { alpha: false, willReadFrequently: true });
+    var MAX_DOWN_WIDTH = 640;
 
     var stage = document.getElementById('stage');
     var targetBox = document.getElementById('target-box');
@@ -552,7 +545,6 @@
     var vTime = document.getElementById('v-time');
     var bPause = document.getElementById('b-pause');
     var statusBadge = document.getElementById('status-badge');
-    var errorBanner = document.getElementById('error-banner');
     var bManualStart = document.getElementById('b-manual-start');
     var btnDir = document.getElementById('btn-dir');
     var vbPlay = document.getElementById('vb-play');
@@ -594,7 +586,6 @@
       }
     });
 
-    // 【修正】ボタンタップ時の反転トグル
     btnDir.addEventListener('click', function() {
       if (moveDirection === -1) setDirection(1, true);
       else setDirection(-1, true);
@@ -609,8 +600,6 @@
       } else {
         btnDir.innerText = '🔄'; btnDir.className = 'dir-auto';
       }
-      backwardStreak = 0;
-      errorBanner.style.display = 'none';
       hasPrevProf = false;
       lastShiftS = 0;
     }
@@ -704,12 +693,9 @@
       requestWakeLock();
       if (!v.srcObject && !v.src) openCamera();
 
-      // 初期値 -1（⬅）をそのまま維持
-      if (moveDirection === 0) setDirection(-1, false);
-
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isManualTracking = true;
-      hasPrevProf = false; announcedMarks = {}; backwardStreak = 0;
+      hasPrevProf = false; announcedMarks = {};
       lastShiftS = 0;
 
       if (curCableThickPx > 4.0) baseCableThickPx = curCableThickPx;
@@ -776,14 +762,13 @@
         stopReverse();
         bPause.className = 'green col-left-main'; bPause.innerText = '測定開始 ▶';
         vbPlay.innerText = '再生 ▶'; txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
-        backwardStreak = 0; errorBanner.style.display = 'none';
         lastShiftS = 0;
         if (!v.paused) v.pause();
       } else {
         requestWakeLock();
         if (!v.srcObject && !v.src) openCamera();
         bPause.className = 'orange col-left-main'; bPause.innerText = '一時停止 ⏸';
-        vbPlay.innerText = '一時停止 ⏸'; hasPrevProf = false; backwardStreak = 0;
+        vbPlay.innerText = '一時停止 ⏸'; hasPrevProf = false;
         lastShiftS = 0;
         if (currentPlaybackRate < 0) {
           startReverse(currentPlaybackRate);
@@ -799,15 +784,14 @@
       totalDist = 0.0; totalPxSinceStart = 0.0;
       isInsideYellow = false; isManualTracking = false;
       whiteFrameCount = 0; hasPrevProf = false;
-      announcedMarks = {}; speedSamples = []; backwardStreak = 0;
+      announcedMarks = {}; speedSamples = [];
       lastShiftS = 0;
-      errorBanner.style.display = 'none';
-      updateDistUI();
-      txtSpeed.innerText = "0.0"; txtEta.innerText = "予想: --分--秒";
 
+      // 自動判定モードへリセット
+      moveDirection = 0;
       autoDirAccumPx = 0.0;
-      // 【修正】初期向きを ⬅ にリセット
-      setDirection(-1, false);
+      btnDir.innerText = '🔄';
+      btnDir.className = 'dir-auto';
 
       baseCableThickPx = 0.0; curCableThickPx = 0.0; thickHistory = [];
 
@@ -1189,11 +1173,23 @@
 
             var rawShiftPx = bestS * (swSrc / PW);
 
-            // 【極性修正】
-            // ケーブルが「右から左」に動くと画像は左シフト（bestS < 0）
-            // ボタンが「⬅（moveDirection = -1）」のとき、正方向加算とするため符号を反転
+            /* 【テスト用反転】初動ベクトルの自動判定しきい値を逆転 */
+            if (moveDirection === 0) {
+              if (Math.abs(rawShiftPx) > 0.5) {
+                autoDirAccumPx += rawShiftPx;
+                if (autoDirAccumPx > 25.0) {
+                  // 正の変位で ⬅（左向き・右から左への正加算）に確定
+                  setDirection(-1, false);
+                } else if (autoDirAccumPx < -25.0) {
+                  // 負の変位で ➡（右向き）に確定
+                  setDirection(1, false);
+                }
+              }
+            }
+
+            // 【極性計算】右から左への移動（bestS < 0）に対し、moveDirection = -1 のとき正加算
             var activeDir = (moveDirection !== 0) ? moveDirection : -1;
-            var shiftPx = (rawShiftPx * activeDir);
+            var shiftPx = -rawShiftPx * activeDir;
 
             if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
               var thickRatio = baseCableThickPx / curCableThickPx;
@@ -1202,17 +1198,7 @@
               }
             }
 
-            if (shiftPx < -2.0) {
-              backwardStreak++;
-              if (backwardStreak >= 3) {
-                errorBanner.innerText = '🔄 バック中...';
-                errorBanner.style.display = 'block';
-              }
-            } else {
-              backwardStreak = 0;
-              errorBanner.style.display = 'none';
-            }
-
+            // バック判定は廃止済み（そのまま積算）
             if (Math.abs(shiftPx) > 0.001) {
               var deltaM = (shiftPx / scaleFactor) / 1000.0;
               totalDist += deltaM;
@@ -1245,8 +1231,6 @@
         } else if (v.paused && !isReversing) {
           txtSpeed.innerText = "0.0";
           txtEta.innerText = "予想: --分--秒";
-          backwardStreak = 0;
-          errorBanner.style.display = 'none';
           hasPrevProf = false;
           lastShiftS = 0;
         }
@@ -1288,20 +1272,14 @@
           var blob = new Blob(recordedChunks, { type: 'video/mp4' });
           var url = URL.createObjectURL(blob);
           var a = document.createElement('a');
-          a.style.display = 'none';
-          a.href = url;
-          a.download = 'kameko_rec_' + Date.now() + '.mp4';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+          a.style.display = 'none'; a.href = url; a.download = 'kameko_rec_' + Date.now() + '.mp4';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
           setTimeout(function() { URL.revokeObjectURL(url); recordedChunks = []; mediaRecorder = null; }, 1500);
         };
 
         mediaRecorder.start(1000);
-        bRecStart.style.display = 'none';
-        bRecStop.style.display = 'flex';
-        txtRecTimer.style.display = 'block';
-        recSec = 0;
+        bRecStart.style.display = 'none'; bRecStop.style.display = 'flex';
+        txtRecTimer.style.display = 'block'; recSec = 0;
         
         recTimerInterval = setInterval(function() {
           recSec++;
@@ -1316,9 +1294,7 @@
 
       function cleanupRecUI() {
         if (recTimerInterval) { clearInterval(recTimerInterval); recTimerInterval = null; }
-        bRecStart.style.display = 'flex';
-        bRecStop.style.display = 'none';
-        txtRecTimer.style.display = 'none';
+        bRecStart.style.display = 'flex'; bRecStop.style.display = 'none'; txtRecTimer.style.display = 'none';
       }
     })();
 
