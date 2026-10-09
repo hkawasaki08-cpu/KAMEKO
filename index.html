@@ -141,7 +141,7 @@
       border-radius: 2px; background: #000; display: block;
     }
 
-    /* 録画コントロールバー（リロードボタン追加） */
+    /* 録画コントロールバー */
     #rec-controls-bar {
       background: #18181b;
       padding: 4px 6px;
@@ -342,7 +342,7 @@
     <canvas id="diag-canvas" width="160" height="32"></canvas>
   </div>
 
-  <!-- 録画バー：リロードボタンを追加 -->
+  <!-- 録画コントロールバー -->
   <div id="rec-controls-bar">
     <span id="rec-timer">● REC 00:00</span>
     <button id="b-reload" title="ページを再読み込み">🔄 リロード</button>
@@ -402,6 +402,11 @@
     var isInsideYellow = false;
     var totalPxSinceStart = 0.0;
     var whiteFrameCount = 0;
+
+    /* --- 【解決策C】ケーブル外径（太さ）追従型・撮影距離自己補正変数 --- */
+    var baseCableThickPx = 0.0;     // 基準太さ（D0）
+    var curCableThickPx = 0.0;      // 現フレームの平滑化太さ（Dcur）
+    var thickHistory = [];          // 太さのローパスフィルタ用配列
 
     var announcedMarks = {};
     var speedSamples = [];
@@ -624,14 +629,12 @@
 
     bManualStart.addEventListener('click', startManualMeasurement);
 
-    /* 【改修】手動計測の確実な起動処理 */
     function startManualMeasurement() {
       requestWakeLock();
       if (!v.srcObject && !v.src) {
         openCamera();
       }
       
-      // 方向が未確定（0）ならデフォルトで右向き（1）を即時設定
       if (moveDirection === 0) {
         setDirection(1, false);
       }
@@ -643,8 +646,15 @@
       hasPrevProf = false;
       announcedMarks = {};
       backwardStreak = 0;
-      updateDistUI();
 
+      // 手動開始時の現在のケーブル太さを基準値として初期ロック
+      if (curCableThickPx > 4.0) {
+        baseCableThickPx = curCableThickPx;
+      } else {
+        baseCableThickPx = 0.0;
+      }
+
+      updateDistUI();
       statusBadge.className = 'active';
       statusBadge.innerText = '手動測定中';
       
@@ -769,6 +779,10 @@
       autoDirAccumPx = 0.0;
       btnDir.innerText = '🔄';
       btnDir.className = 'dir-auto';
+
+      baseCableThickPx = 0.0;
+      curCableThickPx = 0.0;
+      thickHistory = [];
 
       if (operationMode === 'AUTO') {
         autoState = 'WAIT_HEAD_INSIDE';
@@ -960,7 +974,9 @@
       } else {
         diagMsg.innerText = "🟢 測定環境：良好"; diagMsg.style.color = "#4ade80";
       }
-      diagSub.innerText = "W(白): " + whiteRatioPct.toFixed(1) + "% | Y(黄): " + yellowRatioPct.toFixed(1) + "% | エッジ: " + avgEdge.toFixed(1);
+
+      var thickInfo = (baseCableThickPx > 0) ? (" | 太さ比:" + (curCableThickPx / baseCableThickPx).toFixed(2)) : "";
+      diagSub.innerText = "W:" + whiteRatioPct.toFixed(0) + "% | Y:" + yellowRatioPct.toFixed(0) + "% | エッジ:" + avgEdge.toFixed(1) + thickInfo;
 
       var dData = diagImgData.data;
       var dw = 160, dh = 32;
@@ -973,6 +989,38 @@
         }
       }
       ctxDiag.putImageData(diagImgData, 0, 0);
+    }
+
+    /* 【解決策C】ケーブル縦幅（外径ピクセル数）の検出関数 */
+    function estimateCableThickness(imgData) {
+      var rowLum = new Float32Array(PH);
+      for (var y = 0; y < PH; y++) {
+        var rowSum = 0;
+        for (var x = 20; x < PW - 20; x++) {
+          var idx = (y * PW + x) * 4;
+          rowSum += (0.299 * imgData[idx] + 0.587 * imgData[idx+1] + 0.114 * imgData[idx+2]);
+        }
+        rowLum[y] = rowSum / (PW - 40);
+      }
+
+      var maxGrad = -1, topY = 0;
+      var minGrad = 1, botY = PH - 1;
+
+      for (var y = 1; y < PH - 1; y++) {
+        var grad = rowLum[y+1] - rowLum[y-1];
+        if (grad > maxGrad) { maxGrad = grad; topY = y; }
+        if (grad < minGrad) { minGrad = grad; botY = y; }
+      }
+
+      var rawThick = Math.abs(botY - topY);
+      if (rawThick >= 6.0 && rawThick <= 30.0) {
+        thickHistory.push(rawThick);
+        if (thickHistory.length > 5) thickHistory.shift();
+        var sum = 0;
+        for (var i = 0; i < thickHistory.length; i++) sum += thickHistory[i];
+        return sum / thickHistory.length;
+      }
+      return curCableThickPx || 16.0;
     }
 
     function mainLoop(now) {
@@ -1015,6 +1063,9 @@
 
           ctxProc.drawImage(downCanvas, sx, sy, swSrc, shSrc, 0, 0, PW, PH);
           var imgData = ctxProc.getImageData(0, 0, PW, PH).data;
+
+          // ケーブル外径（太さピクセル）の測定
+          curCableThickPx = estimateCableThickness(imgData);
 
           var whiteCountTotal = 0, yellowCountTotal = 0, glareCount = 0, sumLumTotal = 0;
 
@@ -1061,6 +1112,7 @@
               if (whiteRatio < 0.04) {
                 autoState = 'TRACKING_WAIT_YEL1';
                 totalDist = 0.0; totalPxSinceStart = 0.0;
+                baseCableThickPx = curCableThickPx; // 基準太さを初期ロック
                 statusBadge.className = 'active';
                 statusBadge.innerText = '測定中 (1m黄待ち)';
                 updateDistUI();
@@ -1073,6 +1125,7 @@
                 isInsideYellow = false;
                 autoState = 'TRACKING_WAIT_YEL2';
                 scaleFactor = totalPxSinceStart / 1000.0;
+                baseCableThickPx = curCableThickPx; // 1m校正時の太さを基準に更新
                 totalDist = 1.0;
                 statusBadge.className = 'cal1';
                 statusBadge.innerText = '1次校正済 (1.00m / 2m黄待ち)';
@@ -1085,6 +1138,7 @@
                 isInsideYellow = false;
                 autoState = 'TRACKING_FINAL';
                 scaleFactor = totalPxSinceStart / 2000.0;
+                baseCableThickPx = curCableThickPx; // 2m本校正時の太さを基準に確定
                 totalDist = 2.0;
                 statusBadge.className = 'cal2';
                 statusBadge.innerText = '本校正完了 (2.00m / 最高精度)';
@@ -1121,6 +1175,14 @@
 
             var activeDir = (moveDirection !== 0) ? moveDirection : 1;
             var shiftPx = rawShiftPx * activeDir;
+
+            /* 【解決策C】撮影距離（太さ比率）によるリアルタイム動的補正 */
+            if (baseCableThickPx > 4.0 && curCableThickPx > 4.0) {
+              var thickRatio = baseCableThickPx / curCableThickPx;
+              if (thickRatio > 0.65 && thickRatio < 1.5) {
+                shiftPx *= thickRatio; // 距離変動によるピクセル伸縮を相殺
+              }
+            }
 
             if (moveDirection !== 0) {
               if (shiftPx < -1.5) {
@@ -1175,7 +1237,7 @@
       requestAnimationFrame(mainLoop);
     }
 
-    /* 【改修】録画処理（時間制限廃止・無制限録画） */
+    /* 録画処理（時間無制限） */
     (function() {
       var mediaRecorder = null;
       var recordedChunks = [];
@@ -1224,7 +1286,6 @@
         txtRecTimer.style.display = 'block';
         recSec = 0;
         
-        // 時間無制限：分:秒（MM:SS）表示
         recTimerInterval = setInterval(function() {
           recSec++;
           var m = Math.floor(recSec / 60);
